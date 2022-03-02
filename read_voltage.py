@@ -23,7 +23,7 @@ def send(a0, a1, a2, a3):
         }
     ]
     r = requests.post(url, headers=headers, json=data)
-    print(r.status_code)
+    print("{}\t[{}, {}, {}, {}]".format(r.status_code, a0, a1, a2, a3))
 
 
 def read():
@@ -34,8 +34,8 @@ def read():
     ser = serial.Serial(port, 9600, timeout=1)
     ser.reset_input_buffer()
 
-    freq_in_sec = 2
-    waiting_time = freq_in_sec * 1000 * 1000 * 1000  # seconds to nanoseconds.
+    send_interval_s = 2
+    waiting_time = send_interval_s * 1000 * 1000 * 1000  # seconds to nanoseconds.
     last_sent = time_ns()
     while True:
         if ser.in_waiting > 0:
