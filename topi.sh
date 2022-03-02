@@ -1,2 +1,2 @@
 #!/bin/bash
-scp ./1.py pi@172.16.38.85:~/Desktop/code/
+scp ./read_voltage.py pi@10.59.18.11:~/code/

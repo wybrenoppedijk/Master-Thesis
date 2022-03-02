@@ -13,7 +13,7 @@ def plot():
     lines, = ax.plot(x, y)
     ax.set_ylim(-0.1,5.1)
 
-    port = '/dev/ttyUSB0'
+    port = '/dev/ttyACM0'
     if len(sys.argv) > 1 and sys.argv[1] == 'debug':
         port = '/dev/tty.usbmodem12401'
     ser = serial.Serial(port, 9600, timeout=1)
