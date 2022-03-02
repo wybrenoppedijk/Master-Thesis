@@ -3,12 +3,14 @@ import sys
 
 import serial
 import requests
+
 from time import time_ns
 
 
 def send(a0, a1, a2, a3):
     url = 'https://actionprojectdatacollector.azurewebsites.net/dtu/wybren/raspberry/measurements'
     headers = {'Content-Type': 'application/json'}
+    timestamp = int(time_ns() / 1000)
     data = [
         {
             "id": "4b0c2338-9a29-11ec-b909-0242ac120002",
@@ -17,13 +19,14 @@ def send(a0, a1, a2, a3):
                     "a0": a0,
                     "a1": a1,
                     "a2": a2,
-                    "a3": a3
+                    "a3": a3,
+                    "time": timestamp,
                 }
             }
         }
     ]
     r = requests.post(url, headers=headers, json=data)
-    print("{}\t[{}, {}, {}, {}]".format(r.status_code, a0, a1, a2, a3))
+    print("{}\t[{}, {}, {}, {}]\t{}".format(r.status_code, a0, a1, a2, a3, timestamp))
 
 
 def read():

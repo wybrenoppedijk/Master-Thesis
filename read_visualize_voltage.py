@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import serial
 import sys
 
-refresh_rate_hz = 60
+refresh_rate_hz = 600
 buffer_size = 30
 
 def plot():
