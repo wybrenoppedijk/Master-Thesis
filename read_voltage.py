@@ -33,12 +33,12 @@ def read():
 
     while True:
         a0, a1, a2, a3 = None, None, None, None
+        ser.reset_input_buffer()
         if ser.in_waiting > 0:
             line = ser.readline().decode('utf-8').rstrip()
             a0, a1, a2, a3 = line.split(',')
-        send(a0, a1, a2, a3)
+            send(a0, a1, a2, a3)
         sleep(2)
-
 
 
 
