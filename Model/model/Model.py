@@ -78,6 +78,7 @@ class Model:
             return
         log.debug(f"{filepath}: Start parsing")
         df = pd.read_csv(filepath, encoding='cp1252', sep=';', decimal=',').reset_index().iloc[:, 1:]
+        log.debug(f"{filepath}: \t Length = {len(df)}")
         df.columns = ['time', 'current_1', 'current_2', 'water_level', 'outflow_level']
         df = df.astype({
             'current_1': float,
@@ -130,6 +131,7 @@ class Model:
                 added_time = datetime.timedelta(hours=1)
                 current_date += added_time
                 previous_time = datetime.time(0, 0, 0, 0)
+        return time_series
 
 
 
