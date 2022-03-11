@@ -1,0 +1,174 @@
+import datetime
+import re
+
+import pandas as pd
+
+import log
+from pumping_station_enum import PUMPING_STATION_ENUM as PS
+
+
+def df_time_interpolate(df: pd.DataFrame, time_interval_sec: int):
+    opts = dict(closed="left", label="left")
+    time_interval_str = f"{time_interval_sec}S"
+    return resample_time_weighted_mean(
+        df,
+        pd.DatetimeIndex(
+            df.resample(time_interval_str, **opts).groups.keys(), freq="infer"
+        ),
+        **opts,
+    )
+
+
+"""
+Function that converts unequal-distributed time data to equally distributed time data. 
+The value will be the weighted average of of the samples in the given time frame.
+https://stackoverflow.com/questions/46030055/python-time-weighted-average-pandas-grouped-by-time-interval
+"""
+
+
+def resample_time_weighted_mean(x, target_index, closed=None, label=None):
+    shift = 1 if closed == "right" else -1
+    fill = "bfill" if closed == "right" else "ffill"
+    # Determine length of each interval (daylight saving aware)
+    extended_index = target_index.union(
+        [target_index[0] - target_index.freq, target_index[-1] + target_index.freq]
+    )
+    interval_lengths = -extended_index.to_series().diff(periods=shift)
+
+    # Create a combined index of the source index and target index and reindex to combined index
+    combined_index = x.index.union(extended_index)
+    x = x.reindex(index=combined_index, method=fill)
+    interval_lengths = interval_lengths.reindex(index=combined_index, method=fill)
+
+    # Determine weights of each value and multiply source values
+    weights = -x.index.to_series().diff(periods=shift) / interval_lengths
+    x = x.mul(weights, axis=0)
+
+    # Resample to new index, the final reindex is necessary because resample
+    # might return more rows based on the frequency
+    return (
+        x.resample(target_index.freq, closed=closed, label=label)
+        .sum()
+        .reindex(target_index)
+    )
+
+
+month_number_dict = {
+    "januar": 1,
+    "februar": 2,
+    "marts": 3,
+    "april": 4,
+    "maj": 5,
+    "juni": 6,
+    "juli": 7,
+    "august": 8,
+    "september": 9,
+    "oktober": 10,
+    "november": 11,
+    "december": 12,
+}
+
+
+def filename_to_datetime(s: str) -> datetime.datetime:
+    year, month = s.split("/")[-1].split(".")[0].split("_")[1:]
+    month_nr = month_number_dict.get(month.lower())
+
+    return datetime.datetime(int(year), month_nr, 1)
+
+
+def parse_232_233_234_238_239(filepath, ps_name, time_interval):
+    filename = filepath.split("/")[-1]
+    if filename == "PST239_Februar_Graphs.CSV":
+        return
+
+    log.debug(f"{filepath}: Start parsing")
+    df = (
+        pd.read_csv(filepath, encoding="cp1252", sep=";", decimal=",")
+        .reset_index()
+        .iloc[:, 1:]
+    )
+    log.debug(f"{filepath}: \t Length = {len(df)}")
+    log.warning("TODO: Check column order for CSV files")
+    df.columns = ["time", "current_1", "current_2", "water_level", "outflow_level"]
+    df = df.astype(
+        {
+            "current_1": float,
+            "current_2": float,
+            "water_level": float,
+            "outflow_level": float,
+        }
+    )
+    log.debug(f"{filepath}: Converting time column")
+    time_format_sample = df.iloc[0].time
+
+    if re.match(
+        "[0-9]{2}:[0-9]{2},[0-9]", time_format_sample
+    ):  # see PST232_2020_Juli.CSV
+        df.time = pd.to_datetime(
+            df.time, format="%M:%S,%f"
+        )  # converts just time, not the date and hour
+        df.time = calculate_timestamp(df.time, filepath)
+        df.drop_duplicates(subset=["time"], keep="first", inplace=True)
+    elif re.match(
+        "[0-9]{2}-[0-9]{2}-[0-9]{4} [0-9]{2}:[0-9]{2}:[0-9]{2},[0-9]{3}",
+        time_format_sample,
+    ):
+        df.time = pd.to_datetime(df.time, format="%d-%m-%Y %H:%M:%S,%f")
+    else:
+        raise Exception("Unknown time format")
+
+    if (
+        filename == "PST232_2020_Oktober.CSV"
+        or filename == "PST239_Maj.CSV"
+        or filename == "PST239_April.CSV"
+        or filename == "PST239_Oktober.CSV"
+        or filename == "PST234_2020_Oktober.CSV"
+        or filename == "PST233_2020_Oktober.CSV"
+        or filename == "PST233_2021_Juli.CSV"
+        or ps_name == PS.PST238
+    ):
+        df.drop_duplicates(subset=["time"], keep="first", inplace=True)
+        df = df.sort_values(by=["time"])
+
+    df = df.set_index(df.time)
+    df.drop(columns=["time"], inplace=True)
+
+    log.debug(
+        f"{filepath}: Resample (interpolate) data with {time_interval} seconds interval"
+    )
+    old_len = len(df)
+    df = df_time_interpolate(df, time_interval)
+    log.debug(
+        f"{filepath}:\t- Resampling finished (old length = {old_len}, new length = {len(df)})"
+    )
+
+    log.debug(f"{filepath}: Converting currents columns")
+    df["currents"] = df.apply(lambda row: [row.current_1, row.current_2], axis=1)
+    df["current_tot"] = df.apply(lambda row: row.current_1 + row.current_2, axis=1)
+    df.drop(columns=["current_1", "current_2"], inplace=True)
+    df["pumping_station"] = ps_name.name
+
+    log.debug(f"{filepath}: Finished ")
+    return df
+
+
+def calculate_timestamp(time_series: pd.Series, filepath: str):
+    current_date = filename_to_datetime(filepath)
+    previous_time = datetime.time(0, 0, 0, 0)
+
+    for ix, row in time_series.items():
+        time_without_date = row.time()
+        if time_without_date >= previous_time:
+            previous_time = time_without_date
+        else:
+            added_time = datetime.timedelta(hours=1)
+            current_date += added_time
+            previous_time = datetime.time(0, 0, 0, 0)
+
+        time_series.at[ix] = current_date.replace(
+            minute=time_without_date.minute,
+            second=time_without_date.second,
+            microsecond=time_without_date.microsecond,
+        )
+
+    return time_series
