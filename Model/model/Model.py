@@ -11,7 +11,6 @@ import log
 from model.PumpingStation import PumpingStation
 from pumping_station_enum import PUMPING_STATION_ENUM as PS
 
-
 class Model:
     def __init__(
             self,
@@ -26,6 +25,7 @@ class Model:
         self.nr_threads = nr_threads
         self.all_measurements: pd.DataFrame = pd.DataFrame()
         self.time_interval = time_interval
+        self.path_pump_info = path_pump_info
 
         # Step 1: Parse Pumping Stations
         self.parse_ps_info(to_process, path_pump_info)
@@ -85,19 +85,19 @@ class Model:
         filepath, ps_name = filepath_and_ps_name
         try:
             if ps_name == PS.PST232:
-                return parse_232(filepath, ps_name, self.time_interval)
+                return parse_232(filepath, ps_name,self.path_pump_info, self.time_interval)
             elif ps_name == PS.PST233:
-                return parse_233(filepath, ps_name, self.time_interval)
+                return parse_233(filepath, ps_name,self.path_pump_info, self.time_interval)
             elif ps_name == PS.PST234:
-                return parse_234(filepath, ps_name, self.time_interval)
+                return parse_234(filepath, ps_name,self.path_pump_info, self.time_interval)
             elif ps_name == PS.PST237:
-                return parse_237(filepath, ps_name, self.time_interval)
+                return parse_237(filepath, ps_name,self.path_pump_info, self.time_interval)
             elif ps_name == PS.PST238:
-                return parse_238(filepath, ps_name, self.time_interval)
+                return parse_238(filepath, ps_name,self.path_pump_info, self.time_interval)
             elif ps_name == PS.PST239:
-                return parse_239(filepath, ps_name, self.time_interval)
+                return parse_239(filepath, ps_name,self.path_pump_info, self.time_interval)
             elif ps_name == PS.PST240:
-                return parse_240(filepath, ps_name, self.time_interval)
+                return parse_240(filepath, ps_name,self.path_pump_info, self.time_interval)
             else:
                 log.fail(f"{ps_name} not implemented")
 
