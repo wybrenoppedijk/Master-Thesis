@@ -1,10 +1,10 @@
 import pandas as pd
-
-
+from pumping_station_enum import PUMPING_STATION_ENUM as PS
 class PumpingStation:
-    def __init__(self, name: str, loc: list[float]):
-        self.name = name
-        self.location = loc
+    def __init__(self, name: PS, loc: list[float]):
+        self.name:PS = name
+        self.lat = loc[0]
+        self.lon = loc[1]
         self.pumping_stations_upstream = []
         self.pumping_stations_downstream = []
         self.pumps = []
