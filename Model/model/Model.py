@@ -1,7 +1,7 @@
 import os
 from glob import glob
 from multiprocessing import Pool
-from parser import parse_232, parse_233, parse_234, parse_237, parse_238, parse_239, parse_240
+from parser import parse_232, parse_233, parse_234, parse_237, parse_238, parse_239, parse_240, parse_water_consumption_html
 from time import time
 
 import pandas as pd
@@ -17,24 +17,29 @@ class Model:
             to_process,
             path_hist,
             path_pump_info,
-            path_clean_water,
+            path_water_consumption,
             time_interval,
             include_weather,
+            include_water_consumption,
             nr_threads,
     ):
         self.pumping_stations = {}
         self.nr_threads = nr_threads
         self.all_measurements: pd.DataFrame = pd.DataFrame()
+        self.all_water_consumption = pd.DataFrame()
         self.time_interval = time_interval
         self.path_pump_info = path_pump_info
-        self.water_consumtion = None
         self.include_weather = include_weather
+        self.include_water_consumption = include_water_consumption
 
         # Step 1: Parse Pumping Stations
         self.parse_ps_info(to_process, path_pump_info)
-        # Step 2: Parse Historical Data
+        # Step 2: Import Water Consumption data
+        self.parse_water_consumption_data(path_water_consumption)
+        # Step 3: Parse Historical Data
         self.parse_measurements(to_process, path_hist)
-        # Step 3: Import Water data
+
+
 
     def parse_ps_info(self, to_process, data_path):
         df = pd.read_csv(data_path).T[1:]
@@ -42,7 +47,7 @@ class Model:
             ps = PS(ps_name)
             if ps in to_process:
                 self.pumping_stations[ps] = PumpingStation(ps, ps_loc)
-        log.update(f"- imported information about  {len(self.pumping_stations)} pumping stations.")
+        log.update(f"- imported information about {len(self.pumping_stations)} pumping stations.")
 
     def parse_measurements(self, to_process, data_path):
         EXT = "*.CSV"
@@ -88,22 +93,27 @@ class Model:
         filepath, ps_name = filepath_and_ps_name
         try:
             if ps_name == PS.PST232:
-                return parse_232(filepath, self.pumping_stations[ps_name], self.time_interval, self.include_weather)
+                return parse_232(filepath, self.pumping_stations[ps_name], self)
             elif ps_name == PS.PST233:
-                return parse_233(filepath, self.pumping_stations[ps_name], self.time_interval, self.include_weather)
+                return parse_233(filepath, self.pumping_stations[ps_name], self)
             elif ps_name == PS.PST234:
-                return parse_234(filepath, self.pumping_stations[ps_name], self.time_interval, self.include_weather)
+                return parse_234(filepath, self.pumping_stations[ps_name], self)
             elif ps_name == PS.PST237:
-                return parse_237(filepath, self.pumping_stations[ps_name], self.time_interval, self.include_weather)
+                return parse_237(filepath, self.pumping_stations[ps_name], self)
             elif ps_name == PS.PST238:
-                return parse_238(filepath, self.pumping_stations[ps_name], self.time_interval, self.include_weather)
+                return parse_238(filepath, self.pumping_stations[ps_name], self)
             elif ps_name == PS.PST239:
-                return parse_239(filepath, self.pumping_stations[ps_name], self.time_interval, self.include_weather)
+                return parse_239(filepath, self.pumping_stations[ps_name], self)
             elif ps_name == PS.PST240:
-                return parse_240(filepath, self.pumping_stations[ps_name], self.time_interval, self.include_weather)
+                return parse_240(filepath, self.pumping_stations[ps_name], self)
             else:
                 log.fail(f"{ps_name.value} not implemented")
 
         except Exception as e:
             log.fail(f"Could not parse '{filepath}':")
             raise e
+
+    def parse_water_consumption_data(self, data_path):
+        html_files = [html_file for html_file in glob(os.path.join(data_path, '*.html'))]
+        df_consumption_by_month = [parse_water_consumption_html(html_file) for html_file in html_files]
+        self.all_water_consumption = pd.concat(df_consumption_by_month, axis=0)
