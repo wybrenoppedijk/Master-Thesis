@@ -78,34 +78,34 @@ def filename_to_datetime(s: str) -> datetime.datetime:
     return datetime.datetime(int(year), month_nr, 1)
 
 
-def parse_232(filepath, pump_station: PumpingStation, time_interval):
+def parse_232(filepath, pump_station: PumpingStation, time_interval, include_weather):
     column_mapping = {'Tid ': 'time',
                       'PST-232-P1-Strøm Senest målte motorstrøm P1 (0.0-20.0 A)': 'current_1',
                       'PST-232-P2-Strøm Senest målte motorstrøm P2 (0.0-20.0 A)': 'current_2',
                       'PST-232-Niveau Niveau (0.00-10.00 m)': 'water_level',
                       'PST-232-Flow_ud Flow (0.0-250.0 m3/h)': 'outflow_level'}
-    return parse_232_233_234_238_239_240(filepath, pump_station, time_interval, column_mapping)
+    return parse_232_233_234_238_239_240(filepath, pump_station, time_interval, column_mapping, include_weather)
 
 
-def parse_233(filepath, pump_station: PumpingStation, time_interval):
+def parse_233(filepath, pump_station: PumpingStation, time_interval, include_weather):
     column_mapping = {'Tid ': 'time',
                       'PST-233-P1-Strøm Senest målte motorstrøm P1 (0.0-100.0 A)': 'current_1',
                       'PST-233-P2-Strøm Senest målte motorstrøm P2 (0.0-100.0 A)': 'current_2',
                       'PST-233-Niveau Niveau (0.00-10.00 m)': 'water_level',
                       'PST-233-Flow_ud Flow (0.0-500.0 m3/h)': 'outflow_level'}
-    return parse_232_233_234_238_239_240(filepath, pump_station, time_interval, column_mapping)
+    return parse_232_233_234_238_239_240(filepath, pump_station, time_interval, column_mapping, include_weather)
 
 
-def parse_234(filepath, pump_station: PumpingStation, time_interval):
+def parse_234(filepath, pump_station: PumpingStation, time_interval, include_weather):
     column_mapping = {'Tid ': 'time',
                       'PST-234-P1-Strøm Senest målte motorstrøm P1 (0.0-100.0 A)': 'current_1',
                       'PST-234-P2-Strøm Senest målte motorstrøm P2 (0.0-100.0 A)': 'current_2',
                       'PST-234-Niveau Niveau (0.00-10.00 m)': 'water_level',
                       'PST-234-Flow_ud Flow (0.0-500.0 m3/h)': 'outflow_level'}
-    return parse_232_233_234_238_239_240(filepath, pump_station, time_interval, column_mapping)
+    return parse_232_233_234_238_239_240(filepath, pump_station, time_interval, column_mapping, include_weather)
 
 
-def parse_237(filepath, pump_station: PumpingStation, time_interval):
+def parse_237(filepath, pump_station: PumpingStation, time_interval, include_weather):
     column_mapping = {'Tid ': 'time',
                       'PST-237-hist-niv Niveau kurve (0.00-5.00 m)': 'water_level',
                       'PST-237-strøm-P1 Strøm P1 kurve (0.0-100.0 A)': 'current_1',
@@ -113,28 +113,28 @@ def parse_237(filepath, pump_station: PumpingStation, time_interval):
                       'PST-237-flow-hist Flow kurve (0.0-500.0 m3/h)': 'outflow_level',
                       'PST-237-P2-Effekt Aktuel motor effekt (0.0-100.0 kW)': '_unused_1',
                       'PST-237-P1-Effekt Aktuel motor effekt (0.0-100.0 kW)': '_unused_2'}
-    return parse_232_233_234_238_239_240(filepath, pump_station, time_interval, column_mapping)
+    return parse_232_233_234_238_239_240(filepath, pump_station, time_interval, column_mapping, include_weather)
 
 
-def parse_238(filepath, pump_station: PumpingStation, time_interval):
+def parse_238(filepath, pump_station: PumpingStation, time_interval, include_weather):
     column_mapping = {'Tid ': 'time',
                       'PST-238-hist-niv Niveau kurve (0.00-5.00 m)': 'water_level',
                       'PST-238-strøm-P1 Strøm P1 kurve (0.0-10.0 A)': 'current_1',
                       'PST-238-strøm-P2 Strøm P2 kurve (0.0-10.0 A)': 'current_2',
                       'PST-238-flow-hist Flow kurve (0.0-500.0 m3/h)': 'outflow_level'}
-    return parse_232_233_234_238_239_240(filepath, pump_station, time_interval, column_mapping)
+    return parse_232_233_234_238_239_240(filepath, pump_station, time_interval, column_mapping, include_weather)
 
 
-def parse_239(filepath, pump_station: PumpingStation, time_interval):
+def parse_239(filepath, pump_station: PumpingStation, time_interval, include_weather):
     column_mapping = {'Tid ': 'time',
                       'PST-239_Niveau Niveau: (0.00-5.00 m)': 'water_level',
                       'PST-239_Flowmåler (0.0-500.0 m3/h)': 'outflow_level',
                       'PST-239_P1_Strøm (0.0-30.0 A)': 'current_1',
                       'PST-239_P2_Strøm (0.0-80.0 A)': 'current_2'}
-    return parse_232_233_234_238_239_240(filepath, pump_station, time_interval, column_mapping)
+    return parse_232_233_234_238_239_240(filepath, pump_station, time_interval, column_mapping, include_weather)
 
 
-def parse_240(filepath, pump_station: PumpingStation, time_interval):
+def parse_240(filepath, pump_station: PumpingStation, time_interval, include_weather):
     column_mapping = {'Tid ': 'time',
                       'PST-240_Niveau Niveau: (0.00-5.00 m)': 'water_level',
                       'PST-240_Flowmåler (0.0-500.0 m3/h)': 'outflow_level',
@@ -145,10 +145,11 @@ def parse_240(filepath, pump_station: PumpingStation, time_interval):
                       'PST-240_P3_Strøm (0.0-30.0 A)': 'current_3',
                       'PST-240_P3_Effekt Effektmåling pumpe 3 (0.0-60.0 kW)': '_unused_3',
                       }
-    return parse_232_233_234_238_239_240(filepath, pump_station, time_interval, column_mapping)
+    return parse_232_233_234_238_239_240(filepath, pump_station, time_interval, column_mapping, include_weather)
 
 
-def parse_232_233_234_238_239_240(filepath, pump_station: PumpingStation, time_interval, column_mapping) -> pd.DataFrame:
+def parse_232_233_234_238_239_240(filepath, pump_station: PumpingStation, time_interval, column_mapping,
+                                  include_weather) -> pd.DataFrame:
     filename = filepath.split("/")[-1]
     if filename == "PST239_Februar_Graphs.CSV":
         return
@@ -231,8 +232,9 @@ def parse_232_233_234_238_239_240(filepath, pump_station: PumpingStation, time_i
     df["current_tot"] = df.apply(lambda row: row.current_1 + row.current_2, axis=1)
     df.drop(columns=["current_1", "current_2"], inplace=True)
     df["pumping_station"] = pump_station.name
-    df = add_weather_data(df, pump_station.lat, pump_station.lon)
-    log.debug(f"{filepath}: Finished ")
+    if include_weather:
+        df = add_weather_data(df, pump_station.lat, pump_station.lon)
+    log.update(f"{filepath}: Finished ")
     return df
 
 
@@ -257,11 +259,13 @@ def calculate_timestamp(time_series: pd.Series, filepath: str):
 
     return time_series
 
+
 def add_weather_data(pump, lat, long):
     weather = fetch_historic_weather(pump.index[0], pump.index[-1], lat, long)
     assert len(weather) == len(pump), "Weather data is not the same length as the pump data"
     pump[['temp', 'prcp', 'snow']] = weather[['temp', 'prcp', 'snow']]
     return pump
+
 
 def fetch_historic_weather(start: datetime, end: datetime, long, lat): # More details in ATTACHMENT 1
     pump_station_loc = Point(long, lat)

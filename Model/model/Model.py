@@ -19,6 +19,7 @@ class Model:
             path_pump_info,
             path_clean_water,
             time_interval,
+            include_weather,
             nr_threads,
     ):
         self.pumping_stations = {}
@@ -26,18 +27,22 @@ class Model:
         self.all_measurements: pd.DataFrame = pd.DataFrame()
         self.time_interval = time_interval
         self.path_pump_info = path_pump_info
+        self.water_consumtion = None
+        self.include_weather = include_weather
 
         # Step 1: Parse Pumping Stations
         self.parse_ps_info(to_process, path_pump_info)
         # Step 2: Parse Historical Data
         self.parse_measurements(to_process, path_hist)
+        # Step 3: Import Water data
 
     def parse_ps_info(self, to_process, data_path):
         df = pd.read_csv(data_path).T[1:]
         for ps_name, ps_loc in df.iterrows():
-            if PS(ps_name) in to_process:
-                self.pumping_stations[ps_name] = PumpingStation(PS(ps_name), ps_loc)
-        log.update(f"- importing {len(self.pumping_stations)} pumping stations...")
+            ps = PS(ps_name)
+            if ps in to_process:
+                self.pumping_stations[ps] = PumpingStation(ps, ps_loc)
+        log.update(f"- imported information about  {len(self.pumping_stations)} pumping stations.")
 
     def parse_measurements(self, to_process, data_path):
         EXT = "*.CSV"
@@ -47,57 +52,55 @@ class Model:
             for file in glob(os.path.join(path, EXT))
         ]
 
-        csv_files = []
+        csv_to_process = []
         for f in all_csv_filepaths:
             filename = f.split("/")[-1]
             ps_name = PS(filename.split("_")[0])
             if ps_name in to_process:
-                csv_files.append((f, ps_name))
+                csv_to_process.append((f, ps_name))
 
         # Parse data over available threads:
         start_time = time()
-        log.update(
-            f"\t\t- Parsing {len(csv_files)} CSV files using {self.nr_threads} Threads..."
-        )
+        log.update(f"\t\t- Parsing {len(csv_to_process)} CSV files using {self.nr_threads} Threads...")
         if self.nr_threads > 1:
+            # Multithreading approach -> Great for performance
             pool = Pool(processes=self.nr_threads)
             measurements = list(
                 tqdm(
-                    pool.imap(self.worker_process_measurements_csv, csv_files),
-                    total=len(csv_files),
+                    pool.imap(self.worker_process_measurements_csv, csv_to_process),
+                    total=len(csv_to_process),
                 )
             )
             pool.close()
             pool.join()
         else:
+            # Conventional single threaded approach -> Great for debugging
             measurements = [
-                self.worker_process_measurements_csv(csv_file) for csv_file in csv_files
+                self.worker_process_measurements_csv(csv_file) for csv_file in csv_to_process
             ]
 
         log.update("\t\t- Merging results...")
         self.all_measurements = pd.concat(measurements, axis=0)
         log.success(f"\t\t- Done in {time() - start_time} seconds")
-        log.success(
-            f"\t\t- imported historical data for {len(self.pumping_stations)} pumping stations"
-        )
+        log.success(f"\t\t- imported historical data for {len(self.pumping_stations)} pumping stations")
 
     def worker_process_measurements_csv(self, filepath_and_ps_name) -> pd.DataFrame:
         filepath, ps_name = filepath_and_ps_name
         try:
             if ps_name == PS.PST232:
-                return parse_232(filepath, self.pumping_stations[ps_name.value], self.time_interval)
+                return parse_232(filepath, self.pumping_stations[ps_name], self.time_interval, self.include_weather)
             elif ps_name == PS.PST233:
-                return parse_233(filepath, self.pumping_stations[ps_name.value], self.time_interval)
+                return parse_233(filepath, self.pumping_stations[ps_name], self.time_interval, self.include_weather)
             elif ps_name == PS.PST234:
-                return parse_234(filepath, self.pumping_stations[ps_name.value], self.time_interval)
+                return parse_234(filepath, self.pumping_stations[ps_name], self.time_interval, self.include_weather)
             elif ps_name == PS.PST237:
-                return parse_237(filepath, self.pumping_stations[ps_name.value], self.time_interval)
+                return parse_237(filepath, self.pumping_stations[ps_name], self.time_interval, self.include_weather)
             elif ps_name == PS.PST238:
-                return parse_238(filepath, self.pumping_stations[ps_name.value], self.time_interval)
+                return parse_238(filepath, self.pumping_stations[ps_name], self.time_interval, self.include_weather)
             elif ps_name == PS.PST239:
-                return parse_239(filepath, self.pumping_stations[ps_name.value], self.time_interval)
+                return parse_239(filepath, self.pumping_stations[ps_name], self.time_interval, self.include_weather)
             elif ps_name == PS.PST240:
-                return parse_240(filepath, self.pumping_stations[ps_name.value], self.time_interval)
+                return parse_240(filepath, self.pumping_stations[ps_name], self.time_interval, self.include_weather)
             else:
                 log.fail(f"{ps_name.value} not implemented")
 
