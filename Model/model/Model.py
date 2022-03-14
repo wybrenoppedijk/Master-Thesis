@@ -36,7 +36,7 @@ class Model:
         df = pd.read_csv(data_path).T[1:]
         for ps_name, ps_loc in df.iterrows():
             if PS(ps_name) in to_process:
-                self.pumping_stations[ps_name] = PumpingStation(ps_name, ps_loc)
+                self.pumping_stations[ps_name] = PumpingStation(PS(ps_name), ps_loc)
         log.update(f"- importing {len(self.pumping_stations)} pumping stations...")
 
     def parse_measurements(self, to_process, data_path):

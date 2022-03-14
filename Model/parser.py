@@ -207,7 +207,7 @@ def parse_232_233_234_238_239_240(filepath, pump_station: PumpingStation, time_i
             or filename == "PST233_2021_Juli.CSV"
             or filename == "PST240_2020_Maj.CSV"
             or pump_station.name == PS.PST237
-            or pump_station.name == PS.PST238.value):
+            or pump_station.name == PS.PST238):
         df.drop_duplicates(subset=["time"], keep="first", inplace=True)
         df = df.sort_values(by=["time"])
 

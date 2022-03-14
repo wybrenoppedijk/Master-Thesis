@@ -12,13 +12,13 @@ PATH_PUMP_INFO = '../data/pump_locations.csv'
 PATH_CLEAN_WATER = '../data/VS__rapporter_Brogaard_VV_'
 # PUMPING_STATIONS = [n.PST232,n.PST233,n.PST234,n.PST237,n.PST238,n.PST239]
 PUMPING_STATIONS = [n.PST234]
-NR_THREADS = cpu_count() * 2    # number of threads to use
+# NR_THREADS = 1    # number of threads to use
 TIME_INTERVAL_S = 3600
 PATH_HIST = "../data/HistoricData"
 PATH_PUMP_INFO = "../data/pump_locations.csv"
 PATH_CLEAN_WATER = "../data/VS__rapporter_Brogaard_VV_"
 PUMPING_STATIONS = [n.PST232, n.PST233, n.PST234, n.PST237, n.PST238, n.PST239, n.PST240]
-PUMPING_STATIONS = [n.PST238]
+# PUMPING_STATIONS = [n.PST237]
 
 
 def load_data():
