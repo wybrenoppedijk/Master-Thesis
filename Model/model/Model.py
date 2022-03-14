@@ -114,6 +114,7 @@ class Model:
             raise e
 
     def parse_water_consumption_data(self, data_path):
-        html_files = [html_file for html_file in glob(os.path.join(data_path, '*.html'))]
-        df_consumption_by_month = [parse_water_consumption_html(html_file) for html_file in html_files]
-        self.all_water_consumption = pd.concat(df_consumption_by_month, axis=0)
+        if self.include_water_consumption:
+            html_files = [html_file for html_file in glob(os.path.join(data_path, '*.html'))]
+            df_consumption_by_month = [parse_water_consumption_html(html_file) for html_file in html_files]
+            self.all_water_consumption = pd.concat(df_consumption_by_month, axis=0)
