@@ -1,14 +1,18 @@
 import os
 from glob import glob
 from multiprocessing import Pool
+import numpy as np
+
 from parser import parse_232, parse_233, parse_234, parse_237, parse_238, parse_239, parse_240, parse_water_consumption_html
 from time import time
+from math import pi
 
 import pandas as pd
 from tqdm import tqdm
 
 import log
 from model.PumpingStation import PumpingStation
+from model.Pump import Pump
 from pumping_station_enum import PUMPING_STATION_ENUM as PS
 
 class Model:
@@ -16,7 +20,8 @@ class Model:
             self,
             to_process,
             path_hist,
-            path_pump_info,
+            path_ps_location,
+            path_ps_info,
             path_water_consumption,
             time_interval,
             include_weather,
@@ -28,26 +33,61 @@ class Model:
         self.all_measurements: pd.DataFrame = pd.DataFrame()
         self.all_water_consumption = pd.DataFrame()
         self.time_interval = time_interval
-        self.path_pump_info = path_pump_info
         self.include_weather = include_weather
         self.include_water_consumption = include_water_consumption
 
-        # Step 1: Parse Pumping Stations
-        self.parse_ps_info(to_process, path_pump_info)
-        # Step 2: Import Water Consumption data
+        # Step 1: Parse Pumping Stations Location Data
+        self.parse_ps_location(to_process, path_ps_location)
+        # Step 2: Parse Pumping Stations
+        self.parse_ps_info(to_process, path_ps_info)
+        # Step 3: Import Water Consumption data
         self.parse_water_consumption_data(path_water_consumption)
-        # Step 3: Parse Historical Data
+        # Step 4: Parse Historical Data
         self.parse_measurements(to_process, path_hist)
+        # Step 5: Define pipeline connections
+        # TODO
 
-
-
-    def parse_ps_info(self, to_process, data_path):
-        df = pd.read_csv(data_path).T[1:]
+    def parse_ps_location(self, to_process, location_data_path):
+        df = pd.read_csv(location_data_path).T[1:]
         for ps_name, ps_loc in df.iterrows():
             ps = PS(ps_name)
             if ps in to_process:
                 self.pumping_stations[ps] = PumpingStation(ps, ps_loc)
         log.update(f"- imported information about {len(self.pumping_stations)} pumping stations.")
+
+    def parse_ps_info(self, to_process, ps_info_path):
+        df = pd.read_excel(ps_info_path, usecols='A:X').iloc[1:8]
+        df.set_index(df.Item, inplace=True)
+        for ps_name, ps_info in df.iterrows():
+            ps = PS(ps_name)
+            if ps in to_process:
+                ps_to_update = self.pumping_stations[ps]
+                ps_to_update.description = ps_info.Name
+                ps_to_update.description = ps_info.Adress
+                if ps_info.Volumen is not np.nan:
+                    ps_to_update.volume = float(ps_info.Volumen[1:].replace(',','.'))
+                ps_to_update.radius_est = float(ps_info['Est.'])
+                ps_to_update.max_height = float(ps_info['Max'])
+                ps_to_update.volume = ps_to_update.radius_est ** 2 * pi * 1000 * ps_to_update.max_height
+
+                if ps_info.P1:
+                    pump_to_add = Pump()
+                    pump_to_add.max_kW = ps_info.P1
+                    pump_to_add.gain_L_kWh = ps_info['Pumps [L/kWh]']
+                    ps_to_update.pumps.append(pump_to_add)
+                if ps_info.P2:
+                    pump_to_add = Pump()
+                    pump_to_add.max_kW = ps_info.P2
+                    pump_to_add.gain_L_kWh = ps_info['Unnamed: 11']
+                    ps_to_update.pumps.append(pump_to_add)
+                if ps_info.P3:
+                    pump_to_add = Pump()
+                    pump_to_add.max_kW = ps_info.P3
+                    pump_to_add.gain_L_kWh = ps_info['Unnamed: 12']
+                    ps_to_update.pumps.append(pump_to_add)
+
+                self.pumping_stations[ps] = ps_to_update
+                print('done')
 
     def parse_measurements(self, to_process, data_path):
         EXT = "*.CSV"

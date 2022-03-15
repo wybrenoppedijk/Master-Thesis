@@ -5,6 +5,9 @@ class PumpingStation:
         self.name:PS = name
         self.lat = loc[0]
         self.lon = loc[1]
+        self.description = ''
+        self.address = ''
+        self.volume = 0
         self.pumping_stations_upstream = []
         self.pumping_stations_downstream = []
         self.pumps = []

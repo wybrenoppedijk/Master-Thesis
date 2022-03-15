@@ -1,4 +1,4 @@
 class Pump:
     def __init__(self):
-        self.name = None
-        self.max_current = None
+        self.max_kW = None
+        self.gain_L_kWh = None
