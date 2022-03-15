@@ -11,11 +11,11 @@ class bcolors:
 
 
 def update(s):
-    print(f"{bcolors.OKCYAN}{s}{bcolors.ENDC}")
+    print(f"- {bcolors.OKCYAN}{s}{bcolors.ENDC}")
 
 
 def debug(s):
-    print(f"DEBUG:\t{bcolors.HEADER}{s}{bcolors.ENDC}")
+    print(f"   DEBUG:\t{bcolors.HEADER}{s}{bcolors.ENDC}")
 
 
 def success(s):
@@ -27,4 +27,4 @@ def warning(s):
 
 
 def fail(s):
-    print(f"{bcolors.FAIL}{s}{bcolors.ENDC}")
+    print(f"{bcolors.FAIL}ERROR:\t{s}{bcolors.ENDC}")

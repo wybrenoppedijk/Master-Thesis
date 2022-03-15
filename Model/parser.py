@@ -155,13 +155,13 @@ def parse_232_233_234_238_239_240(filepath: str, pump_station: PumpingStation, c
     if filename == "PST239_Februar_Graphs.CSV":
         return
 
-    log.debug(f"{filepath}: Start parsing")
+    log.debug(f"{filepath}: Start parsing...")
     df = (
         pd.read_csv(filepath, encoding="cp1252", sep=";", decimal=",")
             .reset_index()
             .iloc[:, 1:]
     )
-    log.debug(f"{filepath}: \t Length = {len(df)}")
+    log.debug(f"{filepath}: \t Number of samples = {len(df)}")
     df.rename(columns=column_mapping, inplace=True, errors='raise')
     # keep useful columns.
     if pump_station.name is PS.PST240:
@@ -181,7 +181,7 @@ def parse_232_233_234_238_239_240(filepath: str, pump_station: PumpingStation, c
     if pump_station.name is PS.PST240:
         df = df.astype({"current_3": float, })
 
-    log.debug(f"{filepath}: Converting time column")
+    log.debug(f"{filepath}: Converting time column...")
     time_format_sample = df.iloc[0].time
 
     if re.match(
@@ -216,7 +216,7 @@ def parse_232_233_234_238_239_240(filepath: str, pump_station: PumpingStation, c
     df = df.set_index(df.time)
     df.drop(columns=["time"], inplace=True)
 
-    log.debug(f"{filepath}: Resample (interpolate) data with {model.time_interval} seconds interval")
+    log.debug(f"{filepath}: Resample (interpolate) data with {model.time_interval} seconds interval...")
     old_len = len(df)
     df = df_time_interpolate(df, model.time_interval)
     log.debug(f"{filepath}:\t- Resampling finished (old length = {old_len}, new length = {len(df)})")
@@ -233,11 +233,11 @@ def parse_232_233_234_238_239_240(filepath: str, pump_station: PumpingStation, c
     df["pumping_station"] = pump_station.name
 
     if model.include_weather:
-        log.debug(f"{filepath}: Adding weather data")
+        log.debug(f"{filepath}: Adding weather data...")
         df = add_weather_data(df, pump_station.lat, pump_station.lon)
 
     if model.include_water_consumption:
-        log.debug(f"{filepath}: Adding water consumption data")
+        log.debug(f"{filepath}: Adding water consumption data...")
         df = add_water_consumption_data(df, model)
 
     log.update(f"{filepath}: Finished ")

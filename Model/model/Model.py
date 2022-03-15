@@ -14,6 +14,7 @@ import log
 from model.PumpingStation import PumpingStation
 from model.Pump import Pump
 from pumping_station_enum import PUMPING_STATION_ENUM as PS
+from model.pst_connections import link_delay_dict
 
 class Model:
     def __init__(
@@ -28,7 +29,7 @@ class Model:
             include_water_consumption,
             nr_threads,
     ):
-        self.pumping_stations = {}
+        self.pumping_stations: dict[PS, PumpingStation] = {}
         self.nr_threads = nr_threads
         self.all_measurements: pd.DataFrame = pd.DataFrame()
         self.all_water_consumption = pd.DataFrame()
@@ -45,7 +46,8 @@ class Model:
         # Step 4: Parse Historical Data
         self.parse_measurements(to_process, path_hist)
         # Step 5: Define pipeline connections
-        # TODO
+        self.link_pumping_stations(to_process)
+        log.success("Model is ready to use")
 
     def parse_ps_location(self, to_process, location_data_path):
         df = pd.read_csv(location_data_path).T[1:]
@@ -53,7 +55,7 @@ class Model:
             ps = PS(ps_name)
             if ps in to_process:
                 self.pumping_stations[ps] = PumpingStation(ps, ps_loc)
-        log.update(f"- imported information about {len(self.pumping_stations)} pumping stations.")
+        log.update(f"Imported information about {len(self.pumping_stations)} pumping stations.")
 
     def parse_ps_info(self, to_process, ps_info_path):
         df = pd.read_excel(ps_info_path, usecols='A:X').iloc[1:8]
@@ -87,7 +89,7 @@ class Model:
                     ps_to_update.pumps.append(pump_to_add)
 
                 self.pumping_stations[ps] = ps_to_update
-                print('done')
+                log.update(f"Pump station information imported for {ps_name}")
 
     def parse_measurements(self, to_process, data_path):
         EXT = "*.CSV"
@@ -106,7 +108,7 @@ class Model:
 
         # Parse data over available threads:
         start_time = time()
-        log.update(f"\t\t- Parsing {len(csv_to_process)} CSV files using {self.nr_threads} Threads...")
+        log.update(f"Parsing {len(csv_to_process)} 'Historical Data' CSV files using {self.nr_threads} Threads...")
         if self.nr_threads > 1:
             # Multithreading approach -> Great for performance
             pool = Pool(processes=self.nr_threads)
@@ -124,10 +126,9 @@ class Model:
                 self.worker_process_measurements_csv(csv_file) for csv_file in csv_to_process
             ]
 
-        log.update("\t\t- Merging results...")
+        log.update("Merging results of historical data...")
         self.all_measurements = pd.concat(measurements, axis=0)
-        log.success(f"\t\t- Done in {time() - start_time} seconds")
-        log.success(f"\t\t- imported historical data for {len(self.pumping_stations)} pumping stations")
+        log.update(f"Imported historical data for {len(self.pumping_stations)} pumping stations in {time() - start_time} seconds")
 
     def worker_process_measurements_csv(self, filepath_and_ps_name) -> pd.DataFrame:
         filepath, ps_name = filepath_and_ps_name
@@ -158,3 +159,16 @@ class Model:
             html_files = [html_file for html_file in glob(os.path.join(data_path, '*.html'))]
             df_consumption_by_month = [parse_water_consumption_html(html_file) for html_file in html_files]
             self.all_water_consumption = pd.concat(df_consumption_by_month, axis=0)
+
+    def link_pumping_stations(self, to_process):
+        links_count = 0
+        for link, delay in link_delay_dict.items():
+            pst_from, pst_towards = link
+            if pst_from in to_process and pst_towards in to_process:
+                log.debug(f"Laying pipes from '{pst_from.name}' towards '{pst_towards.name}'")
+                to_update_upstream = self.pumping_stations.get(pst_from)
+                to_update_upstream.pumping_stations_upstream.append((pst_towards, delay))
+                to_update_downstream = self.pumping_stations.get(pst_towards)
+                to_update_downstream.pumping_stations_downstream.append((pst_from, delay))
+                links_count += 1
+        log.update(f"{links_count} sewage pipes imported from 'pst_connections.py'")
