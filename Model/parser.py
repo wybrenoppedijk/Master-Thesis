@@ -216,10 +216,11 @@ def parse_232_233_234_238_239_240(filepath: str, pump_station: PumpingStation, c
     df = df.set_index(df.time)
     df.drop(columns=["time"], inplace=True)
 
-    log.debug(f"{filepath}: Resample (interpolate) data with {model.time_interval} seconds interval...")
-    old_len = len(df)
-    df = df_time_interpolate(df, model.time_interval)
-    log.debug(f"{filepath}:\t- Resampling finished (old length = {old_len}, new length = {len(df)})")
+    if model.time_interval is not None:
+        log.debug(f"{filepath}: Resample (interpolate) data with {model.time_interval} seconds interval...")
+        old_len = len(df)
+        df = df_time_interpolate(df, model.time_interval)
+        log.debug(f"{filepath}:\t- Resampling finished (old length = {old_len}, new length = {len(df)})")
 
     log.debug(f"{filepath}: Converting currents columns")
     if pump_station.name is PS.PST240:
