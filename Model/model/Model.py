@@ -1,3 +1,5 @@
+import sys
+sys.path.insert(1, '../')
 import os
 from glob import glob
 from multiprocessing import Pool

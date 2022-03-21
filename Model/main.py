@@ -1,3 +1,5 @@
+import sys
+sys.path.insert(1, './model')
 from model.Model import Model
 from pumping_station_enum import PUMPING_STATION_ENUM as ps
 import pickle

@@ -1,3 +1,5 @@
+import sys
+sys.path.insert(1, './model')
 import datetime
 import re
 
@@ -5,6 +7,7 @@ import numpy as np
 import pandas as pd
 import math
 import log
+
 from pumping_station_enum import PUMPING_STATION_ENUM as PS
 from meteostat import Point, Hourly
 from model.PumpingStation import PumpingStation
