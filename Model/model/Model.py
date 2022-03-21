@@ -54,7 +54,7 @@ class Model:
         self.parse_measurements(to_process, path_hist)
         # Step 6: Define pipeline connections
         self.link_pumping_stations(to_process)
-        log.success("Model is ready to use")
+        log.success("src is ready to use")
 
     def parse_ps_location(self, to_process, location_data_path):
         df = pd.read_csv(location_data_path).T[1:]
