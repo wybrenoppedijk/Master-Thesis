@@ -2,6 +2,7 @@ import sys
 sys.path.insert(1, './model')
 import datetime
 import re
+import os
 
 import numpy as np
 import pandas as pd
@@ -93,7 +94,7 @@ def remove_invalid_readings(df: pd.DataFrame, pump_station: PumpingStation, marg
 
 
 def filename_to_datetime(s: str) -> datetime.datetime:
-    year, month = s.split("/")[-1].split(".")[0].split("_")[1:]
+    year, month = os.path.basename(s).split(".")[0].split("_")[1:]
     month_nr = month_number_dict.get(month.lower())
 
     return datetime.datetime(int(year), month_nr, 1)
@@ -171,7 +172,7 @@ def parse_240(filepath, pump_station: PumpingStation, model):
 
 def parse_232_233_234_238_239_240(filepath: str, pump_station: PumpingStation, column_mapping: dict,
                                   model) -> pd.DataFrame:
-    filename = filepath.split("/")[-1]
+    filename = os.path.basename(filepath)
     if filename == "PST239_Februar_Graphs.CSV":
         return
 

@@ -9,7 +9,6 @@ from math import pi
 
 import pandas as pd
 from tqdm import tqdm
-
 import src.log as log
 from src.model.PumpingStation import PumpingStation
 from src.model.Pump import Pump
@@ -108,7 +107,7 @@ class Model:
 
         csv_to_process = []
         for f in all_csv_filepaths:
-            filename = f.split("/")[-1]
+            filename = os.path.basename(f)
             ps_name = PS(filename.split("_")[0])
             if ps_name in to_process:
                 csv_to_process.append((f, ps_name))
