@@ -17,7 +17,7 @@ PATH_PUMP_GAIN = "data/pump_gains.csv"
 
 # What to include
 PUMPING_STATIONS = [ps.PST232, ps.PST233, ps.PST234, ps.PST237, ps.PST238, ps.PST239, ps.PST240]
-INCLUDE_DATA_VALIDATION = True # Takes long time
+INCLUDE_DATA_VALIDATION = False  # Takes long time
 INCLUDE_WEATHER_DATA = False
 INCLUDE_WATER_CONSUMPTION = False
 REMOVE_INVALID_READINGS = False
@@ -41,7 +41,7 @@ def load_data():
 
     # Save outputs
     to_save = model.all_measurements.sort_index()
-    to_save.to_pickle(f'output/no_interpolation_all.pkl', compression='gzip')
+    to_save.to_pickle(f'output/ps232-validated.pkl', compression='gzip')
 
 
     return model
@@ -49,6 +49,4 @@ def load_data():
 
 if __name__ == '__main__':
     model = load_data()
-    # model.all_measurements.to_csv('../data/all_measurements.csv')
-    sorted = model.all_measurements.sort_index()
     print("Done")
