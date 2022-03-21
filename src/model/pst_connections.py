@@ -1,4 +1,4 @@
-from pumping_station_enum import PUMPING_STATION_ENUM as PS
+from src.pumping_station_enum import PUMPING_STATION_ENUM as PS
 
 link_delay_dict = {
     (PS.PST238, PS.PST237): 5,

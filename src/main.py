@@ -1,7 +1,7 @@
 import sys
 sys.path.insert(1, './model')
-from model.Model import Model
-from pumping_station_enum import PUMPING_STATION_ENUM as ps
+from src.model.Model import Model
+from src.pumping_station_enum import PUMPING_STATION_ENUM as ps
 import pickle
 
 # Number of threads to use for parsing
@@ -11,11 +11,11 @@ NR_THREADS = 8
 TIME_INTERVAL_S = None
 
 # Data Files
-PATH_HIST = "data/HistoricData"
-PATH_PUMP_LOCATION = "data/pump_locations.csv"
-PATH_PUMP_INFO = "data/PST Pump powers and volumes.xlsx"
-PATH_CLEAN_WATER = "data/VS__rapporter_Brogaard_VV_"
-PATH_PUMP_GAIN = "data/pump_gains.csv"
+PATH_HIST = "../data/HistoricData"
+PATH_PUMP_LOCATION = "../data/pump_locations.csv"
+PATH_PUMP_INFO = "../data/PST Pump powers and volumes.xlsx"
+PATH_CLEAN_WATER = "../data/VS__rapporter_Brogaard_VV_"
+PATH_PUMP_GAIN = "../data/pump_gains.csv"
 
 # What to include
 PUMPING_STATIONS = [ps.PST232, ps.PST233, ps.PST234, ps.PST237, ps.PST238, ps.PST239, ps.PST240]

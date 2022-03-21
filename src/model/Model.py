@@ -1,22 +1,20 @@
-import sys
-sys.path.insert(1, '../')
 import os
 from glob import glob
 from multiprocessing import Pool
 import numpy as np
 
-from parser import parse_232, parse_233, parse_234, parse_237, parse_238, parse_239, parse_240, parse_water_consumption_html
+from src.parser import parse_232, parse_233, parse_234, parse_237, parse_238, parse_239, parse_240, parse_water_consumption_html
 from time import time
 from math import pi
 
 import pandas as pd
 from tqdm import tqdm
 
-import log
-from model.PumpingStation import PumpingStation
-from model.Pump import Pump
-from pumping_station_enum import PUMPING_STATION_ENUM as PS
-from model.pst_connections import link_delay_dict
+import src.log as log
+from src.model.PumpingStation import PumpingStation
+from src.model.Pump import Pump
+from src.pumping_station_enum import PUMPING_STATION_ENUM as PS
+from src.model.pst_connections import link_delay_dict
 
 class Model:
     def __init__(
@@ -56,7 +54,7 @@ class Model:
         self.parse_measurements(to_process, path_hist)
         # Step 6: Define pipeline connections
         self.link_pumping_stations(to_process)
-        log.success("Model is ready to use")
+        log.success("src is ready to use")
 
     def parse_ps_location(self, to_process, location_data_path):
         df = pd.read_csv(location_data_path).T[1:]

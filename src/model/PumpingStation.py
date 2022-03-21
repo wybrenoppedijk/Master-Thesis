@@ -1,5 +1,5 @@
 import pandas as pd
-from pumping_station_enum import PUMPING_STATION_ENUM as PS
+from src.pumping_station_enum import PUMPING_STATION_ENUM as PS
 class PumpingStation:
     def __init__(self, name: PS, loc: list[float]):
         self.name:PS = name

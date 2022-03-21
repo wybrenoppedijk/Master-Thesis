@@ -8,9 +8,9 @@ import pandas as pd
 import math
 import log
 
-from pumping_station_enum import PUMPING_STATION_ENUM as PS
+from src.pumping_station_enum import PUMPING_STATION_ENUM as PS
 from meteostat import Point, Hourly
-from model.PumpingStation import PumpingStation
+from src.model.PumpingStation import PumpingStation
 from data_validator import validate
 
 

@@ -1,7 +1,7 @@
 import numpy as np
 from tqdm import tqdm
 import log
-from pumping_station_enum import PUMPING_STATION_ENUM as ps
+from src.pumping_station_enum import PUMPING_STATION_ENUM as ps
 
 
 class DataValidationError(Exception):
