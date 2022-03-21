@@ -3,7 +3,7 @@ import re
 
 import numpy as np
 import pandas as pd
-
+import math
 import log
 from pumping_station_enum import PUMPING_STATION_ENUM as PS
 from meteostat import Point, Hourly
@@ -70,6 +70,22 @@ month_number_dict = {
     "november": 11,
     "december": 12,
 }
+
+
+def remove_invalid_readings(df: pd.DataFrame, pump_station: PumpingStation, margin=0.1):
+    power_p1 = (math.sqrt(3) * df.current_1 * 400 / 1000)
+    power_p2 = (math.sqrt(3) * df.current_2 * 400 / 1000)
+    power_p3 = 0
+    gain_p1 = pump_station.gain[0]
+    gain_p2 = pump_station.gain[1]
+    gain_p3 = 0
+    if 'current_3' in df.columns:
+        power_p3 = (math.sqrt(3) * df.current_3 * 400 / 1000)
+        gain_p3 = pump_station.gain[2]
+    corrected_outflow = power_p1 * gain_p1 + power_p2 * gain_p2 + power_p3 * gain_p3
+    correct = (df.outflow_level * (1 - margin) > corrected_outflow)  | (df.outflow_level * (margin + 1) < corrected_outflow * (1 + margin))
+    df[~correct].outflow_level = corrected_outflow[~correct]
+    return df
 
 
 def filename_to_datetime(s: str) -> datetime.datetime:
@@ -181,6 +197,8 @@ def parse_232_233_234_238_239_240(filepath: str, pump_station: PumpingStation, c
     if pump_station.name is PS.PST240:
         df = df.astype({"current_3": float, })
 
+    # df = remove_invalid_readings(df, pump_station, margin=0.1)
+
     log.debug(f"{filepath}: Converting time column...")
     time_format_sample = df.iloc[0].time
 
@@ -228,6 +246,11 @@ def parse_232_233_234_238_239_240(filepath: str, pump_station: PumpingStation, c
     else:
         df["currents"] = df.apply(lambda row: [row.current_1, row.current_2], axis=1)
     df["current_tot"] = df.apply(lambda row: row.current_1 + row.current_2, axis=1)
+    # if model.remove_invalid_readings:
+    #     df = df.apply(remove_invalid_readings, axis=1)
+    #     df["current_tot"] = df.apply(lambda row: row.current_1 + row.current_2, axis=1)
+
+    df["current_tot"] = df.apply(lambda row: row.current_1 + row.current_2, axis=1)
     df.drop(columns=["current_1", "current_2"], inplace=True)
     if pump_station.name is PS.PST240:
         df.drop(columns=["current_3"], inplace=True)
@@ -241,9 +264,10 @@ def parse_232_233_234_238_239_240(filepath: str, pump_station: PumpingStation, c
         log.debug(f"{filepath}: Adding water consumption data...")
         df = add_water_consumption_data(df, model)
 
+
+
     log.update(f"{filepath}: Finished ")
     return df
-
 
 def calculate_timestamp(time_series: pd.Series, filepath: str):
     current_date = filename_to_datetime(filepath)
@@ -269,9 +293,8 @@ def calculate_timestamp(time_series: pd.Series, filepath: str):
 
 def add_weather_data(pump, lat, long):
     weather = fetch_historic_weather(pump.index[0], pump.index[-1], lat, long)
-    assert len(weather) == len(pump), "Weather data is not the same length as the pump data"
-    pump[['temp', 'prcp', 'snow']] = weather[['temp', 'prcp', 'snow']]
-    return pump
+    return  pump.join(weather[['temp', 'prcp', 'snow']], how='outer').apply(pd.Series.interpolate, args=('time',))
+
 
 
 def fetch_historic_weather(start: datetime, end: datetime, long, lat):  # More details in ATTACHMENT 1

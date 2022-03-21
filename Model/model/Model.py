@@ -24,10 +24,12 @@ class Model:
             path_ps_location,
             path_ps_info,
             path_water_consumption,
+            path_pump_gain,
             time_interval,
             include_weather,
             include_water_consumption,
             nr_threads,
+            remove_invalid_readings
     ):
         self.pumping_stations: dict[PS, PumpingStation] = {}
         self.nr_threads = nr_threads
@@ -36,16 +38,19 @@ class Model:
         self.time_interval = time_interval
         self.include_weather = include_weather
         self.include_water_consumption = include_water_consumption
+        self.remove_invalid_readings = remove_invalid_readings
 
         # Step 1: Parse Pumping Stations Location Data
         self.parse_ps_location(to_process, path_ps_location)
         # Step 2: Parse Pumping Stations
         self.parse_ps_info(to_process, path_ps_info)
-        # Step 3: Import Water Consumption data
+        # Step 3: Parse Pump gains
+        self.parse_pump_gain(path_pump_gain)
+        # Step 4: Import Water Consumption data
         self.parse_water_consumption_data(path_water_consumption)
-        # Step 4: Parse Historical Data
+        # Step 5: Parse Historical Data
         self.parse_measurements(to_process, path_hist)
-        # Step 5: Define pipeline connections
+        # Step 6: Define pipeline connections
         self.link_pumping_stations(to_process)
         log.success("Model is ready to use")
 
@@ -159,6 +164,12 @@ class Model:
             html_files = [html_file for html_file in glob(os.path.join(data_path, '*.html'))]
             df_consumption_by_month = [parse_water_consumption_html(html_file) for html_file in html_files]
             self.all_water_consumption = pd.concat(df_consumption_by_month, axis=0)
+
+    def parse_pump_gain(self, data_path):
+        if self.remove_invalid_readings:
+            df = pd.read_csv(data_path)
+            for ps_name in df.iterrows():
+                self.pumping_stations[PS(ps_name[1][0])].gain = list(map(float,ps_name[1][1].strip('[]').split(',')))
 
     def link_pumping_stations(self, to_process):
         links_count = 0

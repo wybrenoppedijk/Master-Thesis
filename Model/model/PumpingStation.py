@@ -8,6 +8,7 @@ class PumpingStation:
         self.description = ''
         self.address = ''
         self.volume = 0
+        self.gain = []
         self.pumping_stations_upstream = []
         self.pumping_stations_downstream = []
         self.pumps = []
