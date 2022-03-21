@@ -1,5 +1,3 @@
-import sys
-sys.path.insert(1, './model')
 import datetime
 import re
 import os
