@@ -26,6 +26,7 @@ class Model:
             path_water_consumption,
             path_pump_gain,
             time_interval,
+            include_data_validation,
             include_weather,
             include_water_consumption,
             nr_threads,
@@ -36,6 +37,7 @@ class Model:
         self.all_measurements: pd.DataFrame = pd.DataFrame()
         self.all_water_consumption = pd.DataFrame()
         self.time_interval = time_interval
+        self.include_data_validation = include_data_validation
         self.include_weather = include_weather
         self.include_water_consumption = include_water_consumption
         self.remove_invalid_readings = remove_invalid_readings

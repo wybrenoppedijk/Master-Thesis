@@ -8,6 +8,7 @@ import log
 from pumping_station_enum import PUMPING_STATION_ENUM as PS
 from meteostat import Point, Hourly
 from model.PumpingStation import PumpingStation
+from data_validator import validate
 
 
 def df_time_interpolate(df: pd.DataFrame, time_interval_sec: int):
@@ -233,6 +234,9 @@ def parse_232_233_234_238_239_240(filepath: str, pump_station: PumpingStation, c
 
     df = df.set_index(df.time)
     df.drop(columns=["time"], inplace=True)
+
+    if model.include_data_validation:
+        df = validate(df, pump_station.name)
 
     if model.time_interval is not None:
         log.debug(f"{filepath}: Resample (interpolate) data with {model.time_interval} seconds interval...")
