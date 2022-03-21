@@ -26,6 +26,7 @@ class Model:
             path_water_consumption,
             path_pump_gain,
             time_interval,
+            include_data_validation,
             include_weather,
             include_water_consumption,
             nr_threads,
