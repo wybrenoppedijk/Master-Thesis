@@ -3,7 +3,8 @@ from glob import glob
 from multiprocessing import Pool
 import numpy as np
 
-from src.parser import parse_232, parse_233, parse_234, parse_237, parse_238, parse_239, parse_240, parse_water_consumption_html
+from src.parser import parse_232, parse_233, parse_234, parse_237, parse_238, parse_239, parse_240, \
+    parse_water_consumption_html
 from time import time
 from math import pi
 
@@ -14,6 +15,7 @@ from src.model.PumpingStation import PumpingStation
 from src.model.Pump import Pump
 from src.pumping_station_enum import PUMPING_STATION_ENUM as PS
 from src.model.pst_connections import link_delay_dict
+
 
 class Model:
     def __init__(
@@ -40,6 +42,11 @@ class Model:
         self.include_weather = include_weather
         self.include_water_consumption = include_water_consumption
         self.remove_invalid_readings = remove_invalid_readings
+
+        if (time_interval is not None) and include_data_validation:
+            log.fail("Data validation and time interpolation cannot be both enabled: ")
+            log.fail("Set 'INCLUDE_DATA_VALIDATION' on 'False'; or set 'TIME_INTERVAL' on 'None'")
+            exit()
 
         # Step 1: Parse Pumping Stations Location Data
         self.parse_ps_location(to_process, path_ps_location)
@@ -73,7 +80,7 @@ class Model:
                 ps_to_update.description = ps_info.Name
                 ps_to_update.description = ps_info.Adress
                 if ps_info.Volumen is not np.nan:
-                    ps_to_update.volume = float(ps_info.Volumen[1:].replace(',','.'))
+                    ps_to_update.volume = float(ps_info.Volumen[1:].replace(',', '.'))
                 ps_to_update.radius_est = float(ps_info['Est.'])
                 ps_to_update.max_height = float(ps_info['Max'])
                 ps_to_update.volume = ps_to_update.radius_est ** 2 * pi * 1000 * ps_to_update.max_height
@@ -134,7 +141,8 @@ class Model:
 
         log.update("Merging results of historical data...")
         self.all_measurements = pd.concat(measurements, axis=0)
-        log.update(f"Imported historical data for {len(self.pumping_stations)} pumping stations in {time() - start_time} seconds")
+        log.update(
+            f"Imported historical data for {len(self.pumping_stations)} pumping stations in {time() - start_time} seconds")
 
     def worker_process_measurements_csv(self, filepath_and_ps_name) -> pd.DataFrame:
         filepath, ps_name = filepath_and_ps_name
@@ -170,7 +178,7 @@ class Model:
         if self.remove_invalid_readings:
             df = pd.read_csv(data_path)
             for ps_name in df.iterrows():
-                self.pumping_stations[PS(ps_name[1][0])].gain = list(map(float,ps_name[1][1].strip('[]').split(',')))
+                self.pumping_stations[PS(ps_name[1][0])].gain = list(map(float, ps_name[1][1].strip('[]').split(',')))
 
     def link_pumping_stations(self, to_process):
         links_count = 0
