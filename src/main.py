@@ -14,6 +14,7 @@ PATH_PUMP_LOCATION = "../data/pump_locations.csv"
 PATH_PUMP_INFO = "../data/PST Pump powers and volumes.xlsx"
 PATH_CLEAN_WATER = "../data/VS__rapporter_Brogaard_VV_"
 PATH_PUMP_GAIN = "../data/pump_gains.csv"
+PATH_VALIDATION_PROPS = "../data/validation_properties.csv"
 
 # What to include
 PUMPING_STATIONS = [ps.PST232, ps.PST233, ps.PST234, ps.PST237, ps.PST238, ps.PST239, ps.PST240]
@@ -32,6 +33,7 @@ def load_data():
         PATH_PUMP_INFO,
         PATH_CLEAN_WATER,
         PATH_PUMP_GAIN,
+        PATH_VALIDATION_PROPS,
         TIME_INTERVAL_S,
         INCLUDE_DATA_VALIDATION,
         INCLUDE_WEATHER_DATA,

@@ -11,6 +11,8 @@ from src.pumping_station_enum import PUMPING_STATION_ENUM as PS
 from meteostat import Point, Hourly
 from src.model.PumpingStation import PumpingStation
 from data_validator import validate
+from src.model import Model
+from data_validator import assert_validation_supported
 
 
 def df_time_interpolate(df: pd.DataFrame, time_interval_sec: int):
@@ -238,7 +240,7 @@ def parse_232_233_234_238_239_240(filepath: str, pump_station: PumpingStation, c
     df.drop(columns=["time"], inplace=True)
 
     if model.include_data_validation:
-        df = validate(df, pump_station.name)
+        df = validate(df, pump_station)
 
     if model.time_interval is not None:
         log.debug(f"{filepath}: Resample (interpolate) data with {model.time_interval} seconds interval...")
@@ -356,3 +358,19 @@ def get_clean_water_usage(x, all_water_consumption):
 def add_water_consumption_data(df: pd.DataFrame, model):
     df['clean_water_usage_day'] = df.index.to_series().map(lambda x: get_clean_water_usage(x, model.all_water_consumption))
     return df
+
+
+def parse_data_validation_props(model: Model, path_validator_properties: str, to_process):
+    df_validation_props = pd.read_csv(path_validator_properties, index_col=0)
+    for ps, validation_prop in df_validation_props.iterrows():
+        ps = PS(ps)
+        if ps in to_process:
+            assert_validation_supported(ps)
+            to_update = model.pumping_stations.get(ps)
+            to_update.current_tolerance = validation_prop.current_tolerance
+            to_update.current_change_threshold = validation_prop.current_change_threshold
+            to_update.current_expected_range = list(map(int, validation_prop.current_expected_range[1:-1].split(",")))
+            to_update.outflow_change_threshold = validation_prop.outflow_change_threshold
+            to_update.outflow_tolerance = validation_prop.outflow_tolerance
+            to_update.outflow_expected_single_p = validation_prop.outflow_expected_single_p
+            to_update.outflow_expected_double_p = validation_prop.outflow_expected_double_p

@@ -4,7 +4,7 @@ from multiprocessing import Pool
 import numpy as np
 
 from src.parser import parse_232, parse_233, parse_234, parse_237, parse_238, parse_239, parse_240, \
-    parse_water_consumption_html
+    parse_water_consumption_html, parse_data_validation_props
 from time import time
 from math import pi
 
@@ -26,6 +26,7 @@ class Model:
             path_ps_info,
             path_water_consumption,
             path_pump_gain,
+            path_validator_properties,
             time_interval,
             include_data_validation,
             include_weather,
@@ -57,7 +58,7 @@ class Model:
         # Step 4: Import Water Consumption data
         self.parse_water_consumption_data(path_water_consumption)
         # Step 5: Parse Historical Data
-        self.parse_measurements(to_process, path_hist)
+        self.parse_measurements(to_process, path_hist, path_validator_properties)
         # Step 6: Define pipeline connections
         self.link_pumping_stations(to_process)
         log.success("src is ready to use")
@@ -104,11 +105,11 @@ class Model:
                 self.pumping_stations[ps] = ps_to_update
                 log.update(f"Pump station information imported for {ps_name}")
 
-    def parse_measurements(self, to_process, data_path):
+    def parse_measurements(self, to_process, path_hist, path_validator_properties):
         EXT = "*.CSV"
         all_csv_filepaths = [
             file
-            for path, subdir, files in os.walk(data_path)
+            for path, subdir, files in os.walk(path_hist)
             for file in glob(os.path.join(path, EXT))
         ]
 
@@ -118,6 +119,10 @@ class Model:
             ps_name = PS(filename.split("_")[0])
             if ps_name in to_process:
                 csv_to_process.append((f, ps_name))
+
+        # Load validator properties if needed
+        if self.include_data_validation:
+            parse_data_validation_props(self, path_validator_properties, to_process)
 
         # Parse data over available threads:
         start_time = time()

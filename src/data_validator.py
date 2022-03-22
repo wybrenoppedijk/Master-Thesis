@@ -1,7 +1,9 @@
 import numpy as np
-from tqdm import tqdm
-import log
+import pandas as pd
 from src.pumping_station_enum import PUMPING_STATION_ENUM as ps
+
+import log
+from src.model import PumpingStation
 
 
 class DataValidationError(Exception):
@@ -10,7 +12,13 @@ class DataValidationError(Exception):
 
 
 validation_supported = [
-    ps.PST232
+    ps.PST232,
+    ps.PST233,
+    ps.PST234,
+    ps.PST237,
+    ps.PST238,
+    ps.PST239,
+    # ps.PST240, # Systems with 3 pumps are not yet supported
 ]
 
 
@@ -21,21 +29,22 @@ def assert_validation_supported(pumping_station):
         raise Exception(f"Validation is not supported for '{pumping_station.name}'")
 
 
-def validate(df, pumping_station: ps):
-    assert_validation_supported(pumping_station)
+def validate(df: pd.DataFrame, pumping_station: PumpingStation):
+    assert_validation_supported(pumping_station.name)
 
     # Modified dataframe optimized for validation
     dfc = df.copy()
     dfc["current_tot"] = dfc.apply(lambda row: row.current_1 + row.current_2, axis=1)
+    ps_name = pumping_station.name.name
 
     # Parameters
-    current_tolerance = 0
-    current_change_threshold = 1.5
-    current_expected_range = [7, 9]
-    outflow_change_threshold = 10
-    outflow_tolerance = 0
-    outflow_expected_single_p = 35
-    outflow_expected_double_p = 60
+    current_tolerance = pumping_station.current_tolerance
+    current_change_threshold = pumping_station.current_change_threshold
+    current_expected_range = pumping_station.current_expected_range
+    outflow_change_threshold = pumping_station.outflow_change_threshold
+    outflow_tolerance = pumping_station.outflow_tolerance
+    outflow_expected_single_p = pumping_station.outflow_expected_single_p
+    outflow_expected_double_p = pumping_station.outflow_expected_double_p
 
     # Fields added as column to DF
     cycle_nrs = []  # Which cycle number. NaN means no cycle
@@ -93,7 +102,7 @@ def validate(df, pumping_station: ps):
         if (ix < 4) | (ix >= len(dfc) - 4):
             append(np.nan, np.nan, None, None)
             continue
-        previous, previous_l4 = dfc.iloc[ix - 1],  dfc.iloc[ix - 4]
+        previous, previous_l4 = dfc.iloc[ix - 1], dfc.iloc[ix - 4]
         next, next_l4 = dfc.iloc[ix + 1], dfc.iloc[ix + 4]
 
         # No outflow and motors are disabled
@@ -143,7 +152,7 @@ def validate(df, pumping_station: ps):
                     append(cycle_count, cycle_step, "[P1,P2]", "[][P1,P2]")
                     continue
                 else:
-                    raise DataValidationError(date, pumping_station.name)
+                    raise DataValidationError(date, ps_name)
 
             # Transition:  [P1][P1+P2], [P2][P1+P2]
             else:
@@ -171,7 +180,7 @@ def validate(df, pumping_station: ps):
                     append(cycle_count, cycle_step, "[P1,P2]", "[P2][P1,P2]")
                     continue
                 else:
-                    raise DataValidationError(date, pumping_station.name)
+                    raise DataValidationError(date, ps_name)
         # Transition:  [P1+P2][P1], [P1+P2][P2]                     # CURRENT DECREASE
         elif flowing_current(now.current_tot) & (previous.current_tot - now.current_tot > current_change_threshold):
             if flowing_current(now.current_1) & flowing_current(now.current_2):
@@ -188,7 +197,7 @@ def validate(df, pumping_station: ps):
                 append(cycle_count, cycle_step, "[P2]", "[P1,P2][P2]")
                 continue
             else:
-                raise DataValidationError(date, pumping_station.name)
+                raise DataValidationError(date, ps_name)
         # No Transition: Stable on P1, P2 or P1,P2
         elif flowing_current(now.current_tot):  # CURRENT STABLE ON
             if not abs(previous.current_tot - now.current_tot) <= current_change_threshold:
@@ -226,7 +235,7 @@ def validate(df, pumping_station: ps):
                 append(cycle_count, cycle_step, "[P1,P2]", None)
                 continue
             else:
-                raise DataValidationError(date, pumping_station.name)
+                raise DataValidationError(date, ps_name)
         # Transition:  [P1][], [P2][], [P1+P2][]
         elif not flowing_current(now.current_tot):
             # Transition:  [P1][], [P2][], [P1+P2][]
@@ -247,7 +256,7 @@ def validate(df, pumping_station: ps):
                     append(cycle_count, cycle_step, "[P1,P2]", "[P1,P2][]")
                     continue
                 else:
-                    raise DataValidationError(date, pumping_station.name)
+                    raise DataValidationError(date, ps_name)
             else:
                 if flowing_outflow(previous.outflow_level):
                     cycle_count += 1
@@ -259,7 +268,7 @@ def validate(df, pumping_station: ps):
                     append(np.nan, np.nan, None, None)
                     continue
         else:
-            raise DataValidationError(date, pumping_station.name)
+            raise DataValidationError(date, ps_name)
     log.update("Finished validation")
 
     # Set results

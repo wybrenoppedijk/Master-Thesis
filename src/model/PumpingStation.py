@@ -21,3 +21,11 @@ class PumpingStation:
                 "water_level",
             ],
         )
+        # Data validator values:
+        self.current_tolerance = 0
+        self.current_change_threshold = 0
+        self.current_expected_range = []
+        self.outflow_change_threshold = 0
+        self.outflow_tolerance = 0
+        self.outflow_expected_single_p = 0
+        self.outflow_expected_double_p = 0
