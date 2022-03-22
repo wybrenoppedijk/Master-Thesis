@@ -1,10 +1,11 @@
 import numpy as np
-import pandas as pd
-from src.pumping_station_enum import PUMPING_STATION_ENUM as ps
-
+from tqdm import tqdm
 import log
-from src.model import PumpingStation
-
+import pandas as pd
+import math
+from src.model.PumpingStation import PumpingStation
+from src.pumping_station_enum import PUMPING_STATION_ENUM as ps
+pd.options.mode.chained_assignment = None
 
 class DataValidationError(Exception):
     def __init__(self, idx, name):
@@ -137,6 +138,10 @@ def validate(df: pd.DataFrame, pumping_station: PumpingStation):
         elif flowing_current(now.current_tot) & (now.current_tot - previous.current_tot > current_change_threshold):
             if not flowing_outflow(next_l4.outflow_level):
                 append_error("Outflow does not start after 4 samples")
+                for ix2, (date, now) in enumerate(df.iloc[ix:ix+4].iterrows()):
+                    water_level_diff = now.water_level - df.iloc[ix + ix2 - 1].water_level
+                    if water_level_diff < 0:
+                        df.loc[date, "outflow_level"] = calc_outflow(now, pumping_station)
                 continue
             if (flowing_current(previous.current_1)) & (flowing_current(previous.current_2)):
                 append_error("Current increased, but both pumps were already on")
@@ -226,6 +231,8 @@ def validate(df: pd.DataFrame, pumping_station: PumpingStation):
                 continue
             if (not flowing_outflow(now.outflow_level)) and (flowing_current(previous_l4.current_tot)):
                 append_error("Pump(s) are running dry, current started 4 samples ago")
+                df.iloc[ix].outflow_level = calc_outflow(df.iloc[ix], pumping_station)
+                # df.iloc[ix] = calc_outflow(df.iloc[ix], pumping_station, watch_water_height=False)
                 continue
             # if not next.water_level < now.water_level:
             #     append_error('Water level does not decrease while pumps are on for a while')
@@ -253,6 +260,7 @@ def validate(df: pd.DataFrame, pumping_station: PumpingStation):
                 if (now.outflow_level < outflow_expected_double_p) & (flowing_current(previous_l4.current_tot)):
                     append_error("Outflow level is too low (5)")
                     continue
+
                 append(cycle_count, cycle_step, "[P1,P2]", None)
                 continue
             else:
