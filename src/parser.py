@@ -157,14 +157,15 @@ def parse_239(filepath, pump_station: PumpingStation, model):
 
 
 def parse_240(filepath, pump_station: PumpingStation, model):
+    # Important: Order of pumps is shifted. Pump 1 is used as 'extra' pump and therefore put as last.
     column_mapping = {'Tid ': 'time',
                       'PST-240_Niveau Niveau: (0.00-5.00 m)': 'water_level',
                       'PST-240_Flowmåler (0.0-500.0 m3/h)': 'outflow_level',
-                      'PST-240_P1_Strøm (0.0-160.0 A)': 'current_1',
-                      'PST-240_P2_Strøm (0.0-30.0 A)': 'current_2',
+                      'PST-240_P1_Strøm (0.0-160.0 A)': 'current_3',
+                      'PST-240_P2_Strøm (0.0-30.0 A)': 'current_1',
                       'PST-240_P2_Effekt Effektmåling pumpe 2 (0.0-60.0 kW)': '_unused_1',
                       'PST-240_P1_Effekt Effektmåling pumpe 1 (0.0-150.0 kW)': '_unused_2',
-                      'PST-240_P3_Strøm (0.0-30.0 A)': 'current_3',
+                      'PST-240_P3_Strøm (0.0-30.0 A)': 'current_2',
                       'PST-240_P3_Effekt Effektmåling pumpe 3 (0.0-60.0 kW)': '_unused_3',
                       }
     return parse_232_233_234_238_239_240(filepath, pump_station, column_mapping, model)
@@ -251,14 +252,11 @@ def parse_232_233_234_238_239_240(filepath: str, pump_station: PumpingStation, c
     log.debug(f"{filepath}: Converting currents columns")
     if pump_station.name is PS.PST240:
         df["currents"] = df.apply(lambda row: [row.current_1, row.current_2, row.current_3], axis=1)
+        df["current_tot"] = df.apply(lambda row: row.current_1 + row.current_2 + row.current_3, axis=1)
     else:
         df["currents"] = df.apply(lambda row: [row.current_1, row.current_2], axis=1)
-    df["current_tot"] = df.apply(lambda row: row.current_1 + row.current_2, axis=1)
-    # if model.remove_invalid_readings:
-    #     df = df.apply(remove_invalid_readings, axis=1)
-    #     df["current_tot"] = df.apply(lambda row: row.current_1 + row.current_2, axis=1)
+        df["current_tot"] = df.apply(lambda row: row.current_1 + row.current_2, axis=1)
 
-    df["current_tot"] = df.apply(lambda row: row.current_1 + row.current_2, axis=1)
     df.drop(columns=["current_1", "current_2"], inplace=True)
     if pump_station.name is PS.PST240:
         df.drop(columns=["current_3"], inplace=True)
