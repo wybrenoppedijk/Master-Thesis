@@ -54,7 +54,7 @@ class Model:
         # Step 2: Parse Pumping Stations
         self.parse_ps_info(to_process, path_ps_info)
         # Step 3: Parse Pump gains
-        self.parse_pump_gain(path_pump_gain)
+        self.parse_pump_gain(to_process, path_pump_gain)
         # Step 4: Import Water Consumption data
         self.parse_water_consumption_data(path_water_consumption)
         # Step 5: Parse Historical Data
@@ -179,11 +179,12 @@ class Model:
             df_consumption_by_month = [parse_water_consumption_html(html_file) for html_file in html_files]
             self.all_water_consumption = pd.concat(df_consumption_by_month, axis=0)
 
-    def parse_pump_gain(self, data_path):
-        if self.remove_invalid_readings:
-            df = pd.read_csv(data_path)
-            for ps_name in df.iterrows():
-                self.pumping_stations[PS(ps_name[1][0])].gain = list(map(float, ps_name[1][1].strip('[]').split(',')))
+    def parse_pump_gain(self,to_process, data_path):
+        df = pd.read_csv(data_path)
+        for ps_name in df.iterrows():
+            ps = PS(ps_name[1][0])
+            if ps in to_process:
+                self.pumping_stations[ps].gain = list(map(float,ps_name[1][1].strip('[]').split(',')))
 
     def link_pumping_stations(self, to_process):
         links_count = 0

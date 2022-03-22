@@ -77,20 +77,7 @@ month_number_dict = {
 }
 
 
-def remove_invalid_readings(df: pd.DataFrame, pump_station: PumpingStation, margin=0.1):
-    power_p1 = (math.sqrt(3) * df.current_1 * 400 / 1000)
-    power_p2 = (math.sqrt(3) * df.current_2 * 400 / 1000)
-    power_p3 = 0
-    gain_p1 = pump_station.gain[0]
-    gain_p2 = pump_station.gain[1]
-    gain_p3 = 0
-    if 'current_3' in df.columns:
-        power_p3 = (math.sqrt(3) * df.current_3 * 400 / 1000)
-        gain_p3 = pump_station.gain[2]
-    corrected_outflow = power_p1 * gain_p1 + power_p2 * gain_p2 + power_p3 * gain_p3
-    correct = (df.outflow_level * (1 - margin) > corrected_outflow)  | (df.outflow_level * (margin + 1) < corrected_outflow * (1 + margin))
-    df[~correct].outflow_level = corrected_outflow[~correct]
-    return df
+
 
 
 def filename_to_datetime(s: str) -> datetime.datetime:
@@ -301,7 +288,7 @@ def calculate_timestamp(time_series: pd.Series, filepath: str):
 
 def add_weather_data(pump, lat, long):
     weather = fetch_historic_weather(pump.index[0], pump.index[-1], lat, long)
-    return  pump.join(weather[['temp', 'prcp', 'snow']], how='outer').apply(pd.Series.interpolate, args=('time',))
+    return pump.join(weather[['temp', 'prcp', 'snow']], how='outer').apply(pd.Series.interpolate, args=('time',))
 
 
 
