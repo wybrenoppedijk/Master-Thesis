@@ -31,11 +31,17 @@ def assert_validation_supported(pumping_station):
 
 def validate(df: pd.DataFrame, pumping_station: PumpingStation):
     assert_validation_supported(pumping_station.name)
+    ps_name = pumping_station.name.name
+
+    # Custom rules for stations with 3 pumps
+    p3 = True if ps_name == ps.PST240 else False
 
     # Modified dataframe optimized for validation
     dfc = df.copy()
-    dfc["current_tot"] = dfc.apply(lambda row: row.current_1 + row.current_2, axis=1)
-    ps_name = pumping_station.name.name
+    if p3:
+        dfc["current_tot"] = dfc.apply(lambda row: row.current_1 + row.current_2 + row.current_3, axis=1)
+    else:
+        dfc["current_tot"] = dfc.apply(lambda row: row.current_1 + row.current_2, axis=1)
 
     # Parameters
     current_tolerance = pumping_station.current_tolerance
@@ -49,8 +55,11 @@ def validate(df: pd.DataFrame, pumping_station: PumpingStation):
     # Fields added as column to DF
     cycle_nrs = []  # Which cycle number. NaN means no cycle
     cycle_steps = []  # How far are we progressed in current cycle
-    cycle_states = []  # [P1], [P2], or [P1+P2]
-    cycle_transitions = []  # [][P1], [][P2], [][P1+P2], [P1][P1+P2], [P2][P1+P2], [P1+P2][P1], [P1+P2][P2], [P1][], [P2][], [P1+P2][],
+    cycle_states = []  # [P1], [P2], or [P1+P2], [P1+P3], [P2+P3], [P1+P2+P3]
+
+    # 2p: [][P1], [][P2], [][P1+P2], [P1][P1+P2], [P2][P1+P2], [P1+P2][P1], [P1+P2][P2], [P1][], [P2][], [P1+P2][],
+    # 3p: [P1+P2][P3], [P3][]   |  P3 is only used as substitute for [P1,P2].
+    cycle_transitions = []
     errors = []
 
     global cycle_step
@@ -109,18 +118,22 @@ def validate(df: pd.DataFrame, pumping_station: PumpingStation):
         if (now.current_tot == 0) & (now.outflow_level == 0):
             append(np.nan, np.nan, None, None)
             continue
-
         # Check if current is in range
+        # TODO: specify acceptable current for pumps separately.
         elif (flowing_current(now.current_1)) & (not current_acceptable(now.current_1)):
             append_error("Current is not within boundaries [P1]")
             continue
         elif (flowing_current(now.current_2)) & (not current_acceptable(now.current_2)):
             append_error("Current is not within boundaries [P2]")
             continue
+        elif p3 and (flowing_current(now.current_3)) & (not current_acceptable(now.current_3)):
+            append_error("Current is not within boundaries [P3]")
+            continue
 
         # Check for State Changes:
         # ==================================================================================
-        # Transition:  [][P1], [][P2], [][P1+P2], [P1][P1+P2], [P2][P1+P2],  # CURRENT INCREASE
+        # Transition:       [][P1], [][P2], [][P1+P2], [P1][P1+P2], [P2][P1+P2],  # CURRENT INCREASE
+        # Transition P3:    [P1,P2][P3] or [P3][P3] (power increase)
         elif flowing_current(now.current_tot) & (now.current_tot - previous.current_tot > current_change_threshold):
             if not flowing_outflow(next_l4.outflow_level):
                 append_error("Outflow does not start after 4 samples")
@@ -153,7 +166,15 @@ def validate(df: pd.DataFrame, pumping_station: PumpingStation):
                     continue
                 else:
                     raise DataValidationError(date, ps_name)
-
+            # Transition P3:    [P1,P2][P3], [P3][P3] (power increase)
+            elif p3 and (flowing_current(now.current_3)):
+                # TODO: handle new states for P3
+                p1_p2_drew_current = flowing_current(previous_l4.current_1) & flowing_current(previous_l4.current_2)
+                p1_p2_draw_current = flowing_current(now.current_1) & flowing_current(previous.current_2)
+                if not (p1_p2_drew_current & p1_p2_draw_current):
+                    append_error("Expected [P1,P2] to be running before starting P3")
+                    continue
+                pass
             # Transition:  [P1][P1+P2], [P2][P1+P2]
             else:
                 both_draw_current = flowing_current(now.current_1) & flowing_current(previous.current_2)
