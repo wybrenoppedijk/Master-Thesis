@@ -3,7 +3,7 @@ from src.pumping_station_enum import PUMPING_STATION_ENUM as ps
 from multiprocessing import cpu_count
 
 # Number of threads to use for parsing
-NR_THREADS = cpu_count()
+NR_THREADS = 1
 
 # Time interval (in seconds) between samples. 'None' means no time interpolation
 TIME_INTERVAL_S = None
@@ -17,7 +17,7 @@ PATH_PUMP_GAIN = "../data/pump_gains.csv"
 PATH_VALIDATION_PROPS = "../data/validation_properties.csv"
 
 # What to include
-PUMPING_STATIONS = [ps.PST232]
+PUMPING_STATIONS = [ps.PST240]
 # PUMPING_STATIONS = [ps.PST232]
 INCLUDE_DATA_VALIDATION = True  # Takes long time
 INCLUDE_WEATHER_DATA = False
