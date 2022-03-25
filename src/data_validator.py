@@ -19,7 +19,7 @@ validation_supported = [
     ps.PST237,
     ps.PST238,
     ps.PST239,
-    # ps.PST240, # Systems with 3 pumps are not yet supported
+    ps.PST240,  # Systems with 3 pumps
 ]
 
 
@@ -61,8 +61,7 @@ def calc_current(df: pd.DataFrame, pump_station: PumpingStation):
             total += 1
 
 def validate(df, pumping_station: PumpingStation):
-    assert_validation_supported(pumping_station.name)
-    ps_name = pumping_station.name.name
+    ps_name = pumping_station.name
 
     # Custom rules for stations with 3 pumps
     p3 = True if ps_name == ps.PST240 else False
@@ -142,7 +141,7 @@ def validate(df, pumping_station: PumpingStation):
         if (ix < 4) | (ix >= len(dfc) - 4):
             append(np.nan, np.nan, None, None)
             continue
-        previous, previous_l4 = dfc.iloc[ix - 1], dfc.iloc[ix - 4]
+        previous, previous_l2, previous_l3, previous_l4 = dfc.iloc[ix-1], dfc.iloc[ix-2], dfc.iloc[ix-3], dfc.iloc[ix-4]
         next, next_l4 = dfc.iloc[ix + 1], dfc.iloc[ix + 4]
 
         # No outflow and motors are disabled
@@ -153,17 +152,12 @@ def validate(df, pumping_station: PumpingStation):
         # TODO: specify acceptable current for pumps separately.
         elif (flowing_current(now.current_1)) & (not current_acceptable(now.current_1, 1)):
             append_error("Current is not within boundaries [P1]")
-
-            # df.loc[date, "current_1"] = calc_current()
-
             continue
         elif (flowing_current(now.current_2)) & (not current_acceptable(now.current_2, 2)):
             append_error("Current is not within boundaries [P2]")
-            # df.loc[date, "current_1"] = calc_current()
             continue
         elif p3 and (flowing_current(now.current_3)) & (not current_acceptable(now.current_3, 3)):
             append_error("Current is not within boundaries [P3]")
-            # df.loc[date, "current_1"] = calc_current()
             continue
 
         # Check for State Changes:
@@ -181,7 +175,7 @@ def validate(df, pumping_station: PumpingStation):
             if (flowing_current(previous.current_1)) & (flowing_current(previous.current_2)):
                 append_error("Current increased, but both pumps were already on")
                 continue
-            # Transition:  [][P1], [][P2], [][P1+P2]
+            # Transition:  [][P1], [][P2], [][P1+P2], [][P3]
             if not flowing_current(previous.current_tot):
                 if flowing_outflow(now.outflow_level):
                     append_error("Expected delay in outflow not found")
@@ -204,19 +198,15 @@ def validate(df, pumping_station: PumpingStation):
                     next_cycle()
                     append(cycle_count, cycle_step, "[P1,P2]", "[][P1,P2]")
                     continue
+                elif (flowing_current(now.current_3)) & (not flowing_current(now.current_1)) & (not flowing_current(now.current_2)):
+                    next_cycle()
+                    append(cycle_count, cycle_step, "[P3]", "[][P3]")
+                    continue
                 else:
                     raise DataValidationError(date, ps_name)
-            # Transition P3:    [P1,P2][P3], [P3][P3] (power increase)
-            elif p3 and (flowing_current(now.current_3)):
-                # TODO: handle new states for P3
-                p1_p2_drew_current = flowing_current(previous_l4.current_1) & flowing_current(previous_l4.current_2)
-                p1_p2_draw_current = flowing_current(now.current_1) & flowing_current(previous.current_2)
-                if not (p1_p2_drew_current & p1_p2_draw_current):
-                    append_error("Expected [P1,P2] to be running before starting P3")
-                    continue
-                pass
+
             # Transition:  [P1][P1+P2], [P2][P1+P2]
-            else:
+            elif (flowing_current(now.current_1)) | (flowing_current(now.current_2)):
                 both_draw_current = flowing_current(now.current_1) & flowing_current(previous.current_2)
                 if not both_draw_current:
                     append_error("Current increased but a second pump is not activated")
@@ -242,8 +232,18 @@ def validate(df, pumping_station: PumpingStation):
                     continue
                 else:
                     raise DataValidationError(date, ps_name)
+            # Transition P3:    [P3][P3] (power increase)
+            elif (flowing_current(now.current_3)) & (not flowing_current(now.current_1)) & (not flowing_current(now.current_2)):
+                if not (flowing_outflow(now.outflow_level)):
+                    append_error("Expected outflow not found")
+                    continue
+                next_cycle()
+                append(cycle_count, cycle_step, "[P3]", "[P3][P3]")
+                continue
+            else:
+                raise DataValidationError(date, ps_name)
         # Transition:  [P1+P2][P1], [P1+P2][P2]                     # CURRENT DECREASE
-        elif flowing_current(now.current_tot) & (previous.current_tot - now.current_tot > current_change_threshold):
+        elif (not flowing_current(now.current_3)) & flowing_current(now.current_tot) & (previous.current_tot - now.current_tot > current_change_threshold):
             if flowing_current(now.current_1) & flowing_current(now.current_2):
                 append_error("Current decreased but both pumps still in operation")
                 continue
@@ -256,6 +256,46 @@ def validate(df, pumping_station: PumpingStation):
             elif (flowing_current(now.current_2)) & (not flowing_current(now.current_1)):
                 next_cycle()
                 append(cycle_count, cycle_step, "[P2]", "[P1,P2][P2]")
+                continue
+            else:
+                raise DataValidationError(date, ps_name)
+        # Transition: [P1,P2][P3]
+        elif flowing_current(now.current_3) & (flowing_current(now.current_1) | flowing_current(now.current_2)) or \
+                (flowing_current(now.current_3) | flowing_current(previous.current_2)) & flowing_current(previous.current_2) or \
+                (flowing_current(now.current_3) | flowing_current(previous_l2.current_2)) & flowing_current(previous_l2.current_2) or \
+                (flowing_current(now.current_3) | flowing_current(previous_l3.current_2)) & flowing_current(previous_l3.current_2) or \
+                (flowing_current(now.current_3) | flowing_current(previous_l4.current_2)) & flowing_current(previous_l4.current_2):
+            # Transition: [P1, P2][P3]  (First Part of transition)
+            if flowing_current(now.current_3) & (flowing_current(now.current_1) | flowing_current(now.current_2)):
+                if not (flowing_outflow(now.outflow_level) < flowing_outflow(previous_l4.outflow_level)):
+                    append_error("Expected outflow to decrease during Transition [P1,P2][P3]")
+                    continue
+                if not flowing_outflow(now.outflow_level):
+                    append_error("Expected outflow during Transition [P1,P2][P3]")
+                    continue
+                if flowing_current(previous_l4.current_3) & (flowing_current(previous_l4.current_1) | flowing_current(previous_l4.current_2)):
+                    append_error("[P3] is running alongside another pump for a long time")
+                    continue
+                append(cycle_count, cycle_step, "[P1,P2,P3]", "[P1,P2][P3]")
+                continue
+            else:
+                append(cycle_count, cycle_step, "[P3]", "[P1,P2][P3]")
+                continue
+        # Transition: [P3][P3] (power decrease), [P3][]
+        elif (flowing_current(now.current_3)) & flowing_current(now.current_tot) & (previous.current_tot - now.current_tot > current_change_threshold) or \
+                (flowing_outflow(now.outflow_level) & (not flowing_current(now.current_3)) & (flowing_current(previous_l4.current_3))) or \
+                (flowing_outflow(now.outflow_level) & (flowing_current(now.current_3)) & (not flowing_current(next_l4.current_3))):
+            # Transition [P3][]
+            if flowing_outflow(now.outflow_level) & (not flowing_current(now.current_3)) & (flowing_current(previous_l4.current_3)):
+                append(cycle_count, cycle_step, "[]", "[P3][]")
+                continue
+            # Transition [P3][]
+            elif flowing_outflow(now.outflow_level) & (flowing_current(now.current_3)) & (not flowing_current(next_l4.current_3)):
+                append(cycle_count, cycle_step, "[P3]", "[P3][]")
+                continue
+            # Transition: [P3][P3] (power decrease)
+            elif (flowing_current(now.current_3)) & flowing_current(now.current_tot) & (previous.current_tot - now.current_tot > current_change_threshold) :
+                append(cycle_count, cycle_step, "[P3]", "[P3][P3]")
                 continue
             else:
                 raise DataValidationError(date, ps_name)
@@ -295,7 +335,6 @@ def validate(df, pumping_station: PumpingStation):
                 if (now.outflow_level < outflow_expected_double_p) & (flowing_current(previous_l4.current_tot)):
                     append_error("Outflow level is too low (5)")
                     continue
-
                 append(cycle_count, cycle_step, "[P1,P2]", None)
                 continue
             else:
@@ -325,6 +364,7 @@ def validate(df, pumping_station: PumpingStation):
                 if flowing_outflow(previous.outflow_level):
                     cycle_count += 1
                     append(np.nan, np.nan, None, None)
+                    continue
                 else:
                     if not next.water_level > now.water_level:
                         append_error("Water level should be rising")
