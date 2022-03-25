@@ -354,7 +354,10 @@ def parse_data_validation_props(model: Model, path_validator_properties: str, to
             to_update = model.pumping_stations.get(ps)
             to_update.current_tolerance = validation_prop.current_tolerance
             to_update.current_change_threshold = validation_prop.current_change_threshold
-            to_update.current_expected_range = list(map(int, validation_prop.current_expected_range[1:-1].split(",")))
+            to_update.current_expected_range = [
+                list(map(float, validation_prop.current_expected_range_p1[1:-1].split(","))),
+                list(map(float, validation_prop.current_expected_range_p2[1:-1].split(","))),
+                list(map(float, validation_prop.current_expected_range_p3[1:-1].split(",")))]
             to_update.outflow_change_threshold = validation_prop.outflow_change_threshold
             to_update.outflow_tolerance = validation_prop.outflow_tolerance
             to_update.outflow_expected_single_p = validation_prop.outflow_expected_single_p

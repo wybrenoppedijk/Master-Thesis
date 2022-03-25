@@ -1,6 +1,5 @@
 import enum
 
-
 class PUMPING_STATION_ENUM(enum.Enum):
     PST232 = "PST232"
     PST233 = "PST233"
