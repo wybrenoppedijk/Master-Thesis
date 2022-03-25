@@ -30,7 +30,20 @@ def assert_validation_supported(pumping_station):
         raise Exception(f"Validation is not supported for '{pumping_station.name}'")
 
 
-def validate(df: pd.DataFrame, pumping_station: PumpingStation):
+def calc_outflow(df: pd.DataFrame, pump_station: PumpingStation):
+        power_p1 = (math.sqrt(3) * df.current_1 * 400 / 1000)
+        power_p2 = (math.sqrt(3) * df.current_2 * 400 / 1000)
+        power_p3 = 0
+        gain_p1 = pump_station.gain[0]
+        gain_p2 = pump_station.gain[1]
+        gain_p3 = 0
+        if 'current_3' in df:
+            power_p3 = (math.sqrt(3) * df.current_3 * 400 / 1000)
+            gain_p3 = pump_station.gain[2]
+        return  (power_p1 * gain_p1 + power_p2 * gain_p2 + power_p3 * gain_p3) / 1000
+
+
+def validate(df, pumping_station: PumpingStation):
     assert_validation_supported(pumping_station.name)
     ps_name = pumping_station.name.name
 
@@ -139,7 +152,7 @@ def validate(df: pd.DataFrame, pumping_station: PumpingStation):
             if not flowing_outflow(next_l4.outflow_level):
                 append_error("Outflow does not start after 4 samples")
                 for ix2, (date, now) in enumerate(df.iloc[ix:ix+4].iterrows()):
-                    water_level_diff = now.water_level - df.iloc[ix + ix2 - 1].water_level
+                    water_level_diff = now.water_level - df.iloc[ix + ix2 - 2].water_level
                     if water_level_diff < 0:
                         df.loc[date, "outflow_level"] = calc_outflow(now, pumping_station)
                 continue
