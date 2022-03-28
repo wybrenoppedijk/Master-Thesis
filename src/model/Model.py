@@ -31,8 +31,8 @@ class Model:
             include_data_validation,
             include_weather,
             include_water_consumption,
+            apply_data_corrections,
             nr_threads,
-            remove_invalid_readings
     ):
         self.pumping_stations: dict[PS, PumpingStation] = {}
         self.nr_threads = nr_threads
@@ -42,7 +42,7 @@ class Model:
         self.include_data_validation = include_data_validation
         self.include_weather = include_weather
         self.include_water_consumption = include_water_consumption
-        self.remove_invalid_readings = remove_invalid_readings
+        self.apply_data_corrections = apply_data_corrections
 
         if (time_interval is not None) and include_data_validation:
             log.fail("Data validation and time interpolation cannot be both enabled: ")

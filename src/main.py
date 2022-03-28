@@ -1,9 +1,10 @@
 from src.model.Model import Model
 from src.pumping_station_enum import PUMPING_STATION_ENUM as ps
 from multiprocessing import cpu_count
+from time import time
 
 # Number of threads to use for parsing
-NR_THREADS = 1
+NR_THREADS = 8
 
 # Time interval (in seconds) between samples. 'None' means no time interpolation
 TIME_INTERVAL_S = None
@@ -23,6 +24,7 @@ INCLUDE_DATA_VALIDATION = True  # Takes long time
 INCLUDE_WEATHER_DATA = False
 INCLUDE_WATER_CONSUMPTION = False
 REMOVE_INVALID_READINGS = False
+APPLY_DATA_CORRECTIONS = False  # Takes long time
 
 
 def load_data():
@@ -38,17 +40,18 @@ def load_data():
         INCLUDE_DATA_VALIDATION,
         INCLUDE_WEATHER_DATA,
         INCLUDE_WATER_CONSUMPTION,
+        APPLY_DATA_CORRECTIONS,
         NR_THREADS,
-        REMOVE_INVALID_READINGS
     )
 
     # Save outputs
     to_save = model.all_measurements.sort_index()
-
-    to_save.to_pickle(f'../output/120s-all.pkl', compression='gzip')
+    print("Saving outputs...")
+    to_save.to_pickle(f'../output/pst240-4.pkl', compression='gzip')
     return model
 
 
 if __name__ == '__main__':
+    start_time = time()
     model = load_data()
-    print("Done")
+    print(f"Done in {time() - start_time} seconds")

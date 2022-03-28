@@ -4,7 +4,6 @@ import os
 
 import numpy as np
 import pandas as pd
-import math
 import log
 
 from src.pumping_station_enum import PUMPING_STATION_ENUM as PS
@@ -228,8 +227,9 @@ def parse_232_233_234_238_239_240(filepath: str, pump_station: PumpingStation, c
     df.drop(columns=["time"], inplace=True)
 
     if model.include_data_validation:
-        df = validate(df, pump_station)
-        df = validate(df, pump_station)
+        df = validate(df, pump_station, model.apply_data_corrections)
+        if model.apply_data_corrections:  # Validate one more time after fixing data
+            df = validate(df, pump_station, False)
 
     if model.time_interval is not None:
         log.debug(f"{filepath}: Resample (interpolate) data with {model.time_interval} seconds interval...")
