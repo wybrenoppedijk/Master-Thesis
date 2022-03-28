@@ -1,3 +1,5 @@
+!./data/validation_properties.csv
+!./data/pump_location.csv
 ./data
 ./idea
 ./vcs
