@@ -22,10 +22,14 @@ class PumpingStation:
             ],
         )
         # Data validator values:
-        self.current_tolerance = 0
-        self.current_change_threshold = 0
-        self.current_expected_range = []
-        self.outflow_change_threshold = 0
-        self.outflow_tolerance = 0
-        self.outflow_expected_single_p = 0
-        self.outflow_expected_double_p = 0
+        self.current_pump_on = 0            # in Amperes
+        self.current_change_threshold = 0   # in Amperes
+        self.current_p1 = []                # in Amperes range
+        self.current_p2 = []                # in Amperes range
+        self.current_p3 = []                # in Amperes range
+        self.outflow_pump_on = 0            # in m3/s
+        self.outflow_change_threshold = 0   # in m3/s
+        self.outflow_p1 = []                # in m3/s range
+        self.outflow_p2 = []                # in m3/s range
+        self.outflow_p1_and_p2 = []         # in m3/s range
+        self.outflow_p3 = []                # in m3/s range

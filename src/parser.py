@@ -346,6 +346,10 @@ def add_water_consumption_data(df: pd.DataFrame, model):
     return df
 
 
+def parse_list(string):
+    return list(map(float, string[1:-1].split(",")))
+
+
 def parse_data_validation_props(model: Model, path_validator_properties: str, to_process):
     df_validation_props = pd.read_csv(path_validator_properties, index_col=0)
     for ps, validation_prop in df_validation_props.iterrows():
@@ -353,13 +357,17 @@ def parse_data_validation_props(model: Model, path_validator_properties: str, to
         if ps in to_process:
             assert_validation_supported(ps)
             to_update = model.pumping_stations.get(ps)
-            to_update.current_tolerance = validation_prop.current_tolerance
+
+            to_update.current_pump_on = validation_prop.current_pump_on
             to_update.current_change_threshold = validation_prop.current_change_threshold
-            to_update.current_expected_range = [
-                list(map(float, validation_prop.current_expected_range_p1[1:-1].split(","))),
-                list(map(float, validation_prop.current_expected_range_p2[1:-1].split(","))),
-                list(map(float, validation_prop.current_expected_range_p3[1:-1].split(",")))]
+            to_update.current_p1 = parse_list(validation_prop.current_p1)
+            to_update.current_p2 = parse_list(validation_prop.current_p2)
+
+            to_update.outflow_pump_on = validation_prop.outflow_pump_on
             to_update.outflow_change_threshold = validation_prop.outflow_change_threshold
-            to_update.outflow_tolerance = validation_prop.outflow_tolerance
-            to_update.outflow_expected_single_p = validation_prop.outflow_expected_single_p
-            to_update.outflow_expected_double_p = validation_prop.outflow_expected_double_p
+            to_update.outflow_p1 = parse_list(validation_prop.outflow_p1)
+            to_update.outflow_p2 = parse_list(validation_prop.outflow_p2)
+            to_update.outflow_p1_and_p2 = parse_list(validation_prop.outflow_p1_and_p2)
+            if ps == PS.PST240:
+                to_update.current_p3 = parse_list(validation_prop.current_p3)
+                to_update.outflow_p3 = parse_list(validation_prop.outflow_p3)
