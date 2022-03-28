@@ -129,11 +129,11 @@ def validate(df, pumping_station: PumpingStation, apply_data_corrections: bool):
 
     def current_acceptable(c, pump_nr):
         if pump_nr == 1:
-            return p.outflow_p1[0] < c < p.outflow_p1[1]
+            return p.current_p1[0] < c < p.current_p1[1]
         elif pump_nr == 2:
-            return p.outflow_p2[0] < c < p.outflow_p2[1]
+            return p.current_p2[0] < c < p.current_p2[1]
         elif pump_nr == 3:
-            return p.outflow_p3[0] < c < p.outflow_p3[1]
+            return p.current_p3[0] < c < p.current_p3[1]
         else:
             raise Exception("Pump number not supported")
 
@@ -203,16 +203,16 @@ def validate(df, pumping_station: PumpingStation, apply_data_corrections: bool):
 
         # Check for simple errors
         # ==================================================================================
+        elif (flowing_current(now.current_1) and (now.current_1 < 0.5)) and (flowing_current(now.current_2) and (now.current_2 < 0.5)):
+            append_error("Leakage Current on both [P1] and [P2]") # Check both at same time to improve performance
+            if apply_data_corrections:
+                df.loc[date, ['current_1', 'current_2']] = 0
+            continue
         elif (flowing_current(now.current_1)) & (not current_acceptable(now.current_1, 1)):
             if now.current_1 < 0.5:
                 if apply_data_corrections:
                     df.loc[date, "current_1"] = 0
                 append_error("Leakage Current on [P1]")
-                continue
-            if now.outflow_level == 0:
-                if apply_data_corrections:
-                    df.loc[date, "current_1"] = 0
-                append_error("Current on [P1] is too high and no outflow")
                 continue
             elif current_and_outflow_incorrect(now):
                 append_error("Both Current and Outflow are incorrect")
@@ -220,18 +220,19 @@ def validate(df, pumping_station: PumpingStation, apply_data_corrections: bool):
                     df.loc[date, ['current_1', 'current_2', 'outflow_level']] = 0
                 continue
             elif not current_acceptable(now.current_1, 1):
-                append_error("Current not within boundaries on p1 [P1]")
+                append_error("Current not within boundaries on [P1]")
                 if apply_data_corrections:
                     df.loc[date, "current_1"] = np.mean(p.current_p1)
                 continue
-            continue
+            else:
+                raise DataValidationError(date, ps_name)
         elif (flowing_current(now.current_2)) & (not current_acceptable(now.current_2, 2)):
             if now.current_2 < 0.5:
+                append_error("Leakage Current on [P2]")
                 if apply_data_corrections:
                     df.loc[date, "current_2"] = 0
-                append_error("Leakage Current on [P2]")
                 continue
-            if now.outflow_level == 0:
+            elif now.outflow_level == 0:
                 if apply_data_corrections:
                     df.loc[date, "current_2"] = 0
                 append_error("Current on [P2] is too high and no outflow")
@@ -241,17 +242,13 @@ def validate(df, pumping_station: PumpingStation, apply_data_corrections: bool):
                 if apply_data_corrections:
                     df.loc[date, "current_2"] = np.mean(p.current_p2)
                 continue
-        elif p3 and (flowing_current(now.current_3)):
-            if not current_acceptable(now.current_3, 3):
-                append_error("Current is not within boundaries [P3]")
-                if apply_data_corrections:
-                    df.loc[date, "current_3"] = np.mean(p.current_p3)
-                continue
-            if not current_acceptable(now.current_3, 3):
-                append_error("Current not within boundaries [P3]")
-                if apply_data_corrections:
-                    df.loc[date, "current_3"] = np.mean(p.current_p3)
-                continue
+            else:
+                raise DataValidationError(date, ps_name)
+        elif p3 and (flowing_current(now.current_3)) and (not current_acceptable(now.current_3, 3)):
+            append_error("Current is not within boundaries [P3]")
+            if apply_data_corrections:
+                df.loc[date, "current_3"] = np.mean(p.current_p3)
+            continue
 
         # Check for State Changes:
         # ==================================================================================
@@ -396,7 +393,7 @@ def validate(df, pumping_station: PumpingStation, apply_data_corrections: bool):
                 continue
             else:
                 raise DataValidationError(date, ps_name)
-        # No Transition: Stable on P1, P2 or P1,P2
+        # No Transition: Stable on P1, P2, [P1,P2] or P3
         elif flowing_current_tot(now):  # CURRENT STABLE ON
             if not abs(previous.current_tot - now.current_tot) <= p.current_change_threshold:
                 append_error("Current is fluctuating")
@@ -441,6 +438,12 @@ def validate(df, pumping_station: PumpingStation, apply_data_corrections: bool):
                         df.loc[date, "outflow_level"] = calc_outflow(df.iloc[ix], pumping_station)
                     continue
                 append(cycle_count, cycle_step, "[P1,P2]", None)
+                continue
+            elif (flowing_current(now.current_3)) & (not flowing_current(now.current_1)) & (not flowing_current(now.current_2)):
+                if not ((flowing_current(previous.current_3)) & (not flowing_current(previous.current_1)) & (not flowing_current(previous.current_2))):
+                    append_error("Unexpected change of selection of enabled pumps (4)")
+                    continue
+                append(cycle_count, cycle_step, "[P3]", None)
                 continue
             else:
                 raise DataValidationError(date, ps_name)
