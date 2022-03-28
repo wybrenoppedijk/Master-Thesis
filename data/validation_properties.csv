@@ -1,0 +1,8 @@
+,current_tolerance,current_change_threshold,current_expected_range_p1,current_expected_range_p2,current_expected_range_p3,outflow_change_threshold,outflow_tolerance,outflow_expected_p1,outflow_expected_double_p, outflow_expected_p2, outflow_expected_p3
+PST232,0,1.5,"[6.5,9.5]","[7,9]","[7,9]",0.1,0.1,50,100,50,0
+PST233,0,1.5,"[6.5,9]","[6.5,9]","[6.5,9]",0.5,0.5,25,25,25,0
+PST234,0,1.5,"[3.5,5.5]","[3.5,5.5]","[3.5,5.5]",0.3,0.3,30,30,30,0
+PST237,0,1.5,"[6.5,9.5]","[6.5,9.5]","[7,9.5]",3,3,60,100,60,0
+PST238,0,1.5,"[2,4.5]","[2,4.5]","[2,4.5]",0.5,0.5,20,25,20,0
+PST239,0,1.5,"[10,25]","[20,80]","[7,9]",0.5,0.5,50,140,130,0
+PST240,0,1.5,"[30,160]","[20,30]","[15,35]",0.1,0.1,300,170,85,110
