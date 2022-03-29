@@ -236,6 +236,10 @@ def parse_232_233_234_238_239_240(filepath: str, pump_station: PumpingStation, c
 
     if model.time_interval is not None:
         log.debug(f"{filepath}: Resample (interpolate) data with {model.time_interval} seconds interval...")
+        if pump_station.name == PS.PST240:
+            df = df[['water_level', 'outflow_level', 'current_1', 'current_2', 'current_3']]
+        else:
+            df = df[['water_level', 'outflow_level', 'current_1', 'current_2']]
         old_len = len(df)
         df = df_time_interpolate(df, model.time_interval)
         log.debug(f"{filepath}:\t- Resampling finished (old length = {old_len}, new length = {len(df)})")
