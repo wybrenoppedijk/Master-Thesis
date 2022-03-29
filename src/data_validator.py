@@ -215,42 +215,50 @@ def validate(df, pumping_station: PumpingStation, apply_data_corrections: bool):
 
         # Check for simple errors
         # ==================================================================================
-        # IF both pumps have current between 0.0 and 0.5 and there is no outflow
-        elif (flowing_current(now.current_1) and (now.current_1 < 0.5)) and (flowing_current(now.current_2) and (now.current_2 < 0.5)) and (not flowing_outflow(previous_l4.outflow_level)):
+        # IF pump is turned on for just one sample
+        elif (flowing_current_tot(now)) and (not flowing_current_tot(previous)) and (not flowing_current_tot(next)):
+            append_error("Pump is turned on for just one sample")
+            if apply_data_corrections:
+                df.loc[date, ['current_1', 'current_2']] = 0
+            continue
+        # IF both pumps have current between 0.0 and 0.5
+        elif (flowing_current(now.current_1) and (now.current_1 < 0.5)) and (flowing_current(now.current_2) and (now.current_2 < 0.5)):
             append_error("Leakage Current on both [P1] and [P2]") # Check both at same time to improve performance
             if apply_data_corrections:
-                df.at[date, ['current_1', 'current_2']] = 0
+                df.loc[date, ['current_1', 'current_2']] = 0
             continue
-        # IF pump 1 has current between 0.0 and 0.5 and there is no outflow
-        elif (flowing_current(now.current_1)) and (not current_acceptable(now.current_1, 1)) and (not flowing_outflow(previous_l4.outflow_level)) and (now.current_1 < 0.5):
+        # IF pump 1 has current between 0.0 and 0.5
+        elif (flowing_current(now.current_1)) and (now.current_1 < 0.5):
             if apply_data_corrections:
                 df.at[date, "current_1"] = 0
             append_error("Leakage Current on [P1]")
             continue
-        # IF pump 2 has current between 0.0 and 0.5 and there is no outflow
-        elif (flowing_current(now.current_2)) and (not current_acceptable(now.current_2, 2)) and (not flowing_outflow(previous_l4.outflow_level)) and (now.current_2 < 0.5):
+        # IF pump 2 has current between 0.0 and 0.5
+        elif (flowing_current(now.current_2)) and (now.current_2 < 0.5):
             append_error("Leakage Current on [P2]")
             if apply_data_corrections:
                 df.at[date, "current_2"] = 0
             continue
+        # IF pump 1 has an unacceptable current
         elif (flowing_current(now.current_1)) and (not current_acceptable(now.current_1, 1)) and (not flowing_outflow(previous_l4.outflow_level)):
             # IF outflow is also incorrect:
             if current_and_outflow_incorrect(now):
                 append_error("current_1 and outflow_level are not within boundaries")
                 if apply_data_corrections:
-                   df.at[date, ['current_1', 'current_2', 'outflow_level']] = 0
+                   df.loc[date, ['current_1', 'current_2', 'outflow_level']] = 0
                 continue
             else:
                 append_error("Current not within boundaries on [P1]")
                 if apply_data_corrections:
                     df.at[date, "current_1"] = np.mean(p.current_p1)
             continue
+        # IF pump 2 has an unacceptable current
         elif (flowing_current(now.current_2)) and (not current_acceptable(now.current_2, 1)) and (not flowing_outflow(previous_l4.outflow_level)):
             # IF outflow is also incorrect:
             if current_and_outflow_incorrect(now):
                 append_error("current_2 and outflow_level are not within boundaries")
                 if apply_data_corrections:
-                   df.at[date, ['current_1', 'current_2', 'outflow_level']] = 0
+                   df.loc[date, ['current_1', 'current_2', 'outflow_level']] = 0
                 continue
             else:
                 append_error("Current not within boundaries on [P2]")
@@ -279,8 +287,8 @@ def validate(df, pumping_station: PumpingStation, apply_data_corrections: bool):
                 append_error("Current increased, but both pumps were already on")
                 continue
             # Transition:  [][P1], [][P2], [][P1+P2], [][P3]
-            if not flowing_current_tot(previous):
-                if flowing_outflow(now.outflow_level):
+            if not (flowing_current_tot(previous)) or (not flowing_current_tot(previous_l4)):
+                if flowing_outflow(now.outflow_level) and (not flowing_current_tot(previous)):
                     append_error("Expected delay in outflow not found")
                     continue
                 if not (flowing_current(now.current_1) | flowing_current(now.current_2)):
@@ -350,7 +358,8 @@ def validate(df, pumping_station: PumpingStation, apply_data_corrections: bool):
             else:
                 raise DataValidationError(date, ps_name)
         # Transition:  [P1+P2][P1], [P1+P2][P2]                     # CURRENT DECREASE
-        elif (not p3 or not flowing_current(now.current_3)) and flowing_current_tot(now) and (previous.current_tot - now.current_tot > p.current_change_threshold):
+        elif (not p3 or not flowing_current(now.current_3)) and flowing_current_tot(now) and (previous.current_tot - now.current_tot > p.current_change_threshold) \
+                and (flowing_current(previous_l4.current_1)) and (flowing_current(previous_l4.current_2)):
             if flowing_current(now.current_1) and flowing_current(now.current_2):
                 append_error("Current decreased but both pumps still in operation")
                 continue
@@ -406,6 +415,42 @@ def validate(df, pumping_station: PumpingStation, apply_data_corrections: bool):
                 continue
             else:
                 raise DataValidationError(date, ps_name)
+        # Transition:  [P1][], [P2][], [P1+P2][]
+        #   -> No flowing current, or reduced current that is about to end.
+        elif not flowing_current_tot(now) or \
+                ((abs(previous_l4.current_tot - now.current_tot) > p.current_change_threshold) and not (flowing_current_tot(next_l4))):
+            # Transition:  [P1][], [P2][], [P1+P2][]
+            if flowing_outflow(now.outflow_level):
+                if not flowing_current_tot(previous_l4):
+                    append_error("Pump is emitting water but operation stopped long time ago")
+                    if apply_data_corrections:
+                        df.at[date, 'outflow_level'] = 0
+                    continue
+                # Transition:  [P1][]
+                if (flowing_current(previous_l4.current_1)) and (not flowing_current(previous_l4.current_2)):
+                    append(cycle_count, cycle_step, "[P1]", "[P1][]")
+                    continue
+                # Transition:  [P2][]
+                elif (flowing_current(previous_l4.current_2)) and (not flowing_current(previous_l4.current_1)):
+                    append(cycle_count, cycle_step, "[P2]", "[P2][]")
+                    continue
+                # Transition:  [P1+P2][]
+                elif (flowing_current(previous_l4.current_1)) and (flowing_current(previous_l4.current_2)):
+                    append(cycle_count, cycle_step, "[P1,P2]", "[P1,P2][]")
+                    continue
+                else:
+                    raise DataValidationError(date, ps_name)
+            else:
+                if flowing_outflow(previous.outflow_level):
+                    cycle_count += 1
+                    append(np.nan, np.nan, None, None)
+                    continue
+                else:
+                    if not next.water_level > now.water_level:
+                        append_error("Water level should be rising")
+                        continue
+                    append(np.nan, np.nan, None, None)
+                    continue
         # No Transition: Stable on P1, P2, [P1,P2] or P3
         elif flowing_current_tot(now):  # CURRENT STABLE ON
             if not abs(previous.current_tot - now.current_tot) <= p.current_change_threshold:
@@ -460,40 +505,6 @@ def validate(df, pumping_station: PumpingStation, apply_data_corrections: bool):
                 continue
             else:
                 raise DataValidationError(date, ps_name)
-        # Transition:  [P1][], [P2][], [P1+P2][]
-        elif not flowing_current_tot(now):
-            # Transition:  [P1][], [P2][], [P1+P2][]
-            if flowing_outflow(now.outflow_level):
-                if not flowing_current_tot(previous_l4):
-                    append_error("Pump is emitting water but operation stopped long time ago")
-                    if apply_data_corrections:
-                        df.at[date, 'outflow_level'] = 0
-                    continue
-                # Transition:  [P1][]
-                if (flowing_current(previous_l4.current_1)) and (not flowing_current(previous_l4.current_2)):
-                    append(cycle_count, cycle_step, "[P1]", "[P1][]")
-                    continue
-                # Transition:  [P2][]
-                elif (flowing_current(previous_l4.current_2)) and (not flowing_current(previous_l4.current_1)):
-                    append(cycle_count, cycle_step, "[P2]", "[P2][]")
-                    continue
-                # Transition:  [P1+P2][]
-                elif (flowing_current(previous_l4.current_1)) and (flowing_current(previous_l4.current_2)):
-                    append(cycle_count, cycle_step, "[P1,P2]", "[P1,P2][]")
-                    continue
-                else:
-                    raise DataValidationError(date, ps_name)
-            else:
-                if flowing_outflow(previous.outflow_level):
-                    cycle_count += 1
-                    append(np.nan, np.nan, None, None)
-                    continue
-                else:
-                    if not next.water_level > now.water_level:
-                        append_error("Water level should be rising")
-                        continue
-                    append(np.nan, np.nan, None, None)
-                    continue
         else:
             raise DataValidationError(date, ps_name)
     log.update("Finished validation")
