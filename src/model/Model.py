@@ -49,7 +49,11 @@ class Model:
             log.warning("Data will be cleaned but you cannot see the errors.")
             log.warning("Set 'INCLUDE_DATA_VALIDATION' on 'True' and set 'TIME_INTERVAL' on 'None'")
             log.warning("To view error messages")
-            # exit()
+
+        if apply_data_corrections and not include_data_validation:
+            log.fail("You cannot apply data corrections without data validation")
+            log.fail("Set 'INCLUDE_DATA_VALIDATION' on 'True'")
+            exit()
 
         # Step 1: Parse Pumping Stations Location Data
         self.parse_ps_location(to_process, path_ps_location)
