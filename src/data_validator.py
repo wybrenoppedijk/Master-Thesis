@@ -1,5 +1,4 @@
 import numpy as np
-from tqdm import tqdm
 import log
 import pandas as pd
 import math
@@ -7,6 +6,18 @@ from src.model.PumpingStation import PumpingStation
 from src.pumping_station_enum import PUMPING_STATION_ENUM as ps
 pd.options.mode.chained_assignment = None
 
+"""
+What is the data validator?
+- Validates each measurement in the dataframe
+- Get new dataframe with the validated data and the validation results
+- Adds cycle information for each measurement
+- Repairs the dataframe if needed
+
+What is not working (yet):
+- The thresholds in 'validation_properties' are inaccurate for some pump stations
+- Incorrect outflow is detected but not repaired
+
+"""
 class DataValidationError(Exception):
     def __init__(self, idx, name):
         super().__init__(f"Reached an unknown state in the DataValidator. See sample '{idx}' in '{name}'")
@@ -467,7 +478,7 @@ def validate(df, pumping_station: PumpingStation, apply_data_corrections: bool):
                     append_error("Unexpected change of selection of enabled pumps (1)")
                     continue
                 if (not outflow_acceptable(now.outflow_level, "[P1]")) and (flowing_current(previous_l4.current_1)):
-                    append_error("Outflow is not within boundaries")
+                    append_error("Outflow is not within boundaries [P1] (1)")
                     if apply_data_corrections:
                         df.at[date, "outflow_level"] = calc_outflow(df.iloc[ix], pumping_station)
                     continue
@@ -480,7 +491,7 @@ def validate(df, pumping_station: PumpingStation, apply_data_corrections: bool):
                         df.at[date, "outflow_level"] = calc_outflow(df.iloc[ix], pumping_station)
                     continue
                 if (not outflow_acceptable(now.outflow_level, "[P2]")) and (flowing_current(previous_l4.current_2)):
-                    append_error("Outflow is not within boundaries")
+                    append_error("Outflow is not within boundaries [P2] (2)")
                     if apply_data_corrections:
                         df.at[date, "outflow_level"] = calc_outflow(df.iloc[ix], pumping_station)
                     continue
@@ -491,7 +502,7 @@ def validate(df, pumping_station: PumpingStation, apply_data_corrections: bool):
                     append_error("Unexpected change of selection of enabled pumps (3)")
                     continue
                 if (not outflow_acceptable(now.outflow_level, "[P1+P2]")) and (flowing_current_tot(previous_l4)):
-                    append_error("Outflow is not within boundaries")
+                    append_error("Outflow is not within boundaries [P1+P2] (3)")
                     if apply_data_corrections:
                         df.at[date, "outflow_level"] = calc_outflow(df.iloc[ix], pumping_station)
                     continue
