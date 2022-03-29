@@ -229,7 +229,10 @@ def parse_232_233_234_238_239_240(filepath: str, pump_station: PumpingStation, c
     if model.include_data_validation:
         df = validate(df, pump_station, model.apply_data_corrections)
         if model.apply_data_corrections:  # Validate one more time after fixing data
-            df = validate(df, pump_station, False)
+            log.update("Second round of data corrections...")
+            df = validate(df, pump_station, model.apply_data_corrections)
+            log.update("Last round of data corrections...")
+            df = validate(df, pump_station, model.apply_data_corrections)
 
     if model.time_interval is not None:
         log.debug(f"{filepath}: Resample (interpolate) data with {model.time_interval} seconds interval...")

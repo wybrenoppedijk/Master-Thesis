@@ -18,13 +18,13 @@ PATH_PUMP_GAIN = "../data/pump_gains.csv"
 PATH_VALIDATION_PROPS = "../data/validation_properties.csv"
 
 # What to include
-PUMPING_STATIONS = [ps.PST240]
-# PUMPING_STATIONS = [ps.PST232]
+PUMPING_STATIONS = [ps.PST232, ps.PST233, ps.PST234, ps.PST237, ps.PST238, ps.PST239,]
+# PUMPING_STATIONS = [ps.PST240]
 INCLUDE_DATA_VALIDATION = True  # Takes long time
 INCLUDE_WEATHER_DATA = False
 INCLUDE_WATER_CONSUMPTION = False
 REMOVE_INVALID_READINGS = False
-APPLY_DATA_CORRECTIONS = False  # Takes long time
+APPLY_DATA_CORRECTIONS = True  # Takes really long time
 
 
 def load_data():
@@ -47,7 +47,7 @@ def load_data():
     # Save outputs
     to_save = model.all_measurements.sort_index()
     print("Saving outputs...")
-    to_save.to_pickle(f'../output/pst240-4.pkl', compression='gzip')
+    to_save.to_pickle(f'../output/all_0.pkl', compression='gzip')
     return model
 
 
