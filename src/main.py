@@ -4,7 +4,7 @@ from multiprocessing import cpu_count
 from time import time
 
 # Number of threads to use for parsing
-NR_THREADS = 8
+NR_THREADS = 14
 
 # Time interval (in seconds) between samples. 'None' means no time interpolation
 TIME_INTERVAL_S = None
@@ -18,8 +18,9 @@ PATH_PUMP_GAIN = "../data/pump_gains.csv"
 PATH_VALIDATION_PROPS = "../data/validation_properties.csv"
 
 # What to include
-PUMPING_STATIONS = [ps.PST232, ps.PST233, ps.PST234, ps.PST237, ps.PST238, ps.PST239,]
-# PUMPING_STATIONS = [ps.PST240]
+PUMPING_STATIONS = [ps.PST232, ps.PST233, ps.PST234, ps.PST237, ps.PST238, ps.PST239, ps.PST240]
+PUMPING_STATIONS = [ps.PST232]
+# PUMPING_STATIONS = [ps.PST239]
 INCLUDE_DATA_VALIDATION = True  # Takes long time
 INCLUDE_WEATHER_DATA = False
 INCLUDE_WATER_CONSUMPTION = False
@@ -47,7 +48,7 @@ def load_data():
     # Save outputs
     to_save = model.all_measurements.sort_index()
     print("Saving outputs...")
-    to_save.to_pickle(f'../output/all_0.pkl', compression='gzip')
+    to_save.to_pickle(f'../output/232.pkl', compression='gzip')
     return model
 
 

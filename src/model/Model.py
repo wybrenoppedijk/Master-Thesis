@@ -45,8 +45,14 @@ class Model:
         self.apply_data_corrections = apply_data_corrections
 
         if (time_interval is not None) and include_data_validation:
-            log.fail("Data validation and time interpolation cannot be both enabled: ")
-            log.fail("Set 'INCLUDE_DATA_VALIDATION' on 'False'; or set 'TIME_INTERVAL' on 'None'")
+            log.warning("Data validation and time interpolation both enabled: ")
+            log.warning("Data will be cleaned but you cannot see the errors.")
+            log.warning("Set 'INCLUDE_DATA_VALIDATION' on 'True' and set 'TIME_INTERVAL' on 'None'")
+            log.warning("To view error messages")
+
+        if apply_data_corrections and not include_data_validation:
+            log.fail("You cannot apply data corrections without data validation")
+            log.fail("Set 'INCLUDE_DATA_VALIDATION' on 'True'")
             exit()
 
         # Step 1: Parse Pumping Stations Location Data
