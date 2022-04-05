@@ -2,6 +2,7 @@ import os
 from glob import glob
 from multiprocessing import Pool
 import numpy as np
+import math
 
 from src.parser import parse_232, parse_233, parse_234, parse_237, parse_238, parse_239, parse_240, \
     parse_water_consumption_html, parse_data_validation_props
@@ -11,6 +12,7 @@ from math import pi
 import pandas as pd
 from tqdm import tqdm
 import src.log as log
+import json
 from src.model.PumpingStation import PumpingStation
 from src.model.Pump import Pump
 from src.pumping_station_enum import PUMPING_STATION_ENUM as PS
@@ -27,10 +29,12 @@ class Model:
             path_water_consumption,
             path_pump_gain,
             path_validator_properties,
+            path_sea_level_data,
             time_interval,
             include_data_validation,
             include_weather,
             include_water_consumption,
+            include_sea_level,
             apply_data_corrections,
             nr_threads,
     ):
@@ -38,10 +42,12 @@ class Model:
         self.nr_threads = nr_threads
         self.all_measurements: pd.DataFrame = pd.DataFrame()
         self.all_water_consumption = pd.DataFrame()
+        self.sea_level_data = pd.DataFrame()
         self.time_interval = time_interval
         self.include_data_validation = include_data_validation
         self.include_weather = include_weather
         self.include_water_consumption = include_water_consumption
+        self.include_sea_level = include_sea_level
         self.apply_data_corrections = apply_data_corrections
 
         if (time_interval is not None) and include_data_validation:
@@ -65,7 +71,9 @@ class Model:
         self.parse_water_consumption_data(path_water_consumption)
         # Step 5: Parse Historical Data
         self.parse_measurements(to_process, path_hist, path_validator_properties)
-        # Step 6: Define pipeline connections
+        # Step 6: Parse Sea Level Data
+        self.parse_sea_level_data(path_sea_level_data)
+        # Step 7: Define pipeline connections
         self.link_pumping_stations(to_process)
         log.success("src is ready to use")
 
@@ -204,3 +212,68 @@ class Model:
                 to_update_downstream.pumping_stations_downstream.append((pst_from, delay))
                 links_count += 1
         log.update(f"{links_count} sewage pipes imported from 'pst_connections.py'")
+
+    # Insert sea levels
+    def split_df_chunks(self, data_df, chunk_size):
+        total_length = len(data_df)
+        total_chunk_num = math.ceil(total_length / chunk_size)
+        normal_chunk_num = math.floor(total_length / chunk_size)
+        chunks = []
+        for i in range(normal_chunk_num):
+            chunk = data_df[(i * chunk_size):((i + 1) * chunk_size)]
+            chunks.append(chunk)
+        if total_chunk_num > normal_chunk_num:
+            chunk = data_df[(normal_chunk_num * chunk_size):total_length]
+            chunks.append(chunk)
+        return chunks
+
+    def get_sea_levels_row(self,date):
+        ix = self.sea_level_data.index.get_indexer([date], method='nearest')[0]
+        return self.sea_level_data.iloc[ix - 4: ix - 1].mean().iat[0], \
+               self.sea_level_data.iloc[ix: ix + 3].mean().iat[0]
+
+    def insert_sea_levels(self, df_part):
+        df_part['tides'] = df_part.index.map(self.get_sea_levels_row)
+        df_part['sea_level_last_30min'] = df_part.tides.apply(lambda x: x[0])
+        df_part['sea_level_next_30min'] = df_part.tides.apply(lambda x: x[1])
+        return df_part
+
+    def parse_sea_level_data(self, path_sea_level_data):
+        if self.include_sea_level:
+            log.debug("Including sea level data")
+            ocean_data = json.load(open(path_sea_level_data))
+            self.sea_level_data = pd.DataFrame(ocean_data.get('features'))[['properties']]
+
+            self.sea_level_data.index = pd.to_datetime(self.sea_level_data.properties.apply(lambda x: x.get('observed')))
+            self.sea_level_data.index = self.sea_level_data.index.tz_localize(None)
+            self.sea_level_data = self.sea_level_data.sort_index(axis=0)
+            self.sea_level_data['sea_level'] = self.sea_level_data.properties.apply(lambda x: x.get('value'))
+
+            # assert all rows have parameterId sea_reg
+            self.sea_level_data['parameter'] = self.sea_level_data.properties.apply(lambda x: x.get('parameterId'))
+            assert (self.sea_level_data.parameter == 'sea_reg').all()
+            self.sea_level_data.drop(columns=['parameter', 'properties'], inplace=True)
+
+            if self.nr_threads > 1:
+                log.debug(f"Imputing sea level data with {self.nr_threads} threads...")
+                pool = Pool(processes=self.nr_threads)
+                chunk_size = (len(self.all_measurements) // self.nr_threads) + 1
+                measurements_chunks = self.split_df_chunks(self.all_measurements, chunk_size)
+                measurements_list = list(
+                    tqdm(
+                        pool.imap(self.insert_sea_levels, measurements_chunks),
+                        total=len(measurements_chunks),
+                    )
+                )
+                pool.close()
+                pool.join()
+                self.all_measurements = pd.concat(measurements_list, axis=0)
+                log.debug("Sea level data imported")
+            else:
+                log.debug("Imputing sea level data...")
+                self.all_measurements = self.insert_sea_levels(self.all_measurements)
+                log.debug("Sea level data imported")
+
+
+            self.all_measurements.drop(columns=['tides'], inplace=True)
+            log.update("Sea level data imported")

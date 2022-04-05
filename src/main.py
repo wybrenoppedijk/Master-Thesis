@@ -4,10 +4,10 @@ from multiprocessing import cpu_count
 from time import time
 
 # Number of threads to use for parsing
-NR_THREADS = 14
+NR_THREADS = 8
 
 # Time interval (in seconds) between samples. 'None' means no time interpolation
-TIME_INTERVAL_S = None
+TIME_INTERVAL_S = 3600
 
 # Data Files
 PATH_HIST = "../data/HistoricData"
@@ -16,16 +16,18 @@ PATH_PUMP_INFO = "../data/PST Pump powers and volumes.xlsx"
 PATH_CLEAN_WATER = "../data/VS__rapporter_Brogaard_VV_"
 PATH_PUMP_GAIN = "../data/pump_gains.csv"
 PATH_VALIDATION_PROPS = "../data/validation_properties.csv"
+PATH_SEA_LEVEL = "../data/ocean_data.json"
 
 # What to include
-PUMPING_STATIONS = [ps.PST232, ps.PST233, ps.PST234, ps.PST237, ps.PST238, ps.PST239, ps.PST240]
-PUMPING_STATIONS = [ps.PST232]
-# PUMPING_STATIONS = [ps.PST239]
-INCLUDE_DATA_VALIDATION = True  # Takes long time
-INCLUDE_WEATHER_DATA = False
-INCLUDE_WATER_CONSUMPTION = False
+# PUMPING_STATIONS = [ps.PST232, ps.PST233, ps.PST234, ps.PST237, ps.PST238, ps.PST239, ps.PST240]
+# PUMPING_STATIONS = [ps.PST232]
+PUMPING_STATIONS = [ps.PST239]
+INCLUDE_DATA_VALIDATION = False  # Takes long time
+INCLUDE_WEATHER_DATA = True
+INCLUDE_WATER_CONSUMPTION = True
+INCLUDE_SEA_LEVEL = True
 REMOVE_INVALID_READINGS = False
-APPLY_DATA_CORRECTIONS = True  # Takes really long time
+APPLY_DATA_CORRECTIONS = False  # Takes really long time
 
 
 def load_data():
@@ -37,10 +39,12 @@ def load_data():
         PATH_CLEAN_WATER,
         PATH_PUMP_GAIN,
         PATH_VALIDATION_PROPS,
+        PATH_SEA_LEVEL,
         TIME_INTERVAL_S,
         INCLUDE_DATA_VALIDATION,
         INCLUDE_WEATHER_DATA,
         INCLUDE_WATER_CONSUMPTION,
+        INCLUDE_SEA_LEVEL,
         APPLY_DATA_CORRECTIONS,
         NR_THREADS,
     )
@@ -48,7 +52,7 @@ def load_data():
     # Save outputs
     to_save = model.all_measurements.sort_index()
     print("Saving outputs...")
-    to_save.to_pickle(f'../output/232.pkl', compression='gzip')
+    to_save.to_pickle(f'../output/239-we-wa-se.pkl', compression='gzip')
     return model
 
 
