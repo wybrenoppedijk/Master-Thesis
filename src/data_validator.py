@@ -229,7 +229,7 @@ def validate(df, pumping_station: PumpingStation, apply_data_corrections: bool):
             continue
         # Check for simple errors
         # ==================================================================================
-        # IF pump is turned on for just one sample
+        # IF pump is turned  on for just one sample
         elif (flowing_current_tot(now)) and (not flowing_current_tot(previous)) and (not flowing_current_tot(next)):
             append_error("Pump is turned on for just one sample")
             if apply_data_corrections:
@@ -321,10 +321,16 @@ def validate(df, pumping_station: PumpingStation, apply_data_corrections: bool):
         elif flowing_current_tot(now) and (now.current_tot - previous.current_tot > p.current_change_threshold):
             if not flowing_outflow(next_l4.outflow_level):
                 append_error("Outflow does not start after 4 samples")
-                for ix2, (date2, now2) in enumerate(df.iloc[ix:ix+4].iterrows()):
-                    water_level_diff = now.water_level - df.iloc[ix + ix2 - 2].water_level
-                    if apply_data_corrections and (water_level_diff < 0):
-                        df.at[date2, "outflow_level"] = calc_outflow(now2, pumping_station)
+                if apply_data_corrections:
+                    if ps.PST238:
+                        # Just set to zero for now and following 4 samples
+                        for ix2, (date2, now2) in enumerate(df.iloc[ix:ix + 4].iterrows()):
+                            df.loc[date2, ["outflow_level", "current_1", "current_2"]] = 0
+                    else:
+                        for ix2, (date2, now2) in enumerate(df.iloc[ix:ix+4].iterrows()):
+                            water_level_diff = now.water_level - df.iloc[ix + ix2 - 2].water_level
+                            if water_level_diff < 0:
+                                df.at[date2, "outflow_level"] = calc_outflow(now2, pumping_station)
                 continue
             if (flowing_current(previous.current_1)) and (flowing_current(previous.current_2)):
                 append_error("Current increased, but both pumps were already on")
@@ -335,7 +341,8 @@ def validate(df, pumping_station: PumpingStation, apply_data_corrections: bool):
                 continue
             # Transition:  [][P1], [][P2], [][P1+P2], [][P3]
             if not (flowing_current_tot(previous)) or (not flowing_current_tot(previous_l4)):
-                if flowing_outflow(now.outflow_level) and (not flowing_current_tot(previous)):
+                # PST239 has low frequency and therefore no delay
+                if (not p != ps.PST239) and flowing_outflow(now.outflow_level) and (not flowing_current_tot(previous)):
                     append_error("Expected delay in outflow not found")
                     continue
                 if not (flowing_current(now.current_1) | flowing_current(now.current_2)):
