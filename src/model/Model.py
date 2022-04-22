@@ -229,8 +229,8 @@ class Model:
 
     def get_sea_levels_row(self,date):
         ix = self.sea_level_data.index.get_indexer([date], method='nearest')[0]
-        return self.sea_level_data.iloc[ix - 4: ix - 1].mean().iat[0], \
-               self.sea_level_data.iloc[ix: ix + 3].mean().iat[0]
+        return self.sea_level_data.iloc[ix - 7: ix - 1].mean().iat[0], \
+               self.sea_level_data.iloc[ix: ix + 6].mean().iat[0]
 
     def insert_sea_levels(self, df_part):
         df_part['tides'] = df_part.index.map(self.get_sea_levels_row)

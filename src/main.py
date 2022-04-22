@@ -7,7 +7,7 @@ from time import time
 NR_THREADS = 8
 
 # Time interval (in seconds) between samples. 'None' means no time interpolation
-TIME_INTERVAL_S = 3600
+TIME_INTERVAL_S = None
 
 # Data Files
 PATH_HIST = "../data/HistoricData"
@@ -20,13 +20,11 @@ PATH_SEA_LEVEL = "../data/ocean_data.json"
 
 # What to include
 # PUMPING_STATIONS = [ps.PST232, ps.PST233, ps.PST234, ps.PST237, ps.PST238, ps.PST239, ps.PST240]
-# PUMPING_STATIONS = [ps.PST232]
-PUMPING_STATIONS = [ps.PST239]
-INCLUDE_DATA_VALIDATION = False  # Takes long time
-INCLUDE_WEATHER_DATA = True
-INCLUDE_WATER_CONSUMPTION = True
-INCLUDE_SEA_LEVEL = True
-REMOVE_INVALID_READINGS = False
+PUMPING_STATIONS = [ps.PST238]
+INCLUDE_DATA_VALIDATION = True  # Takes long time
+INCLUDE_WEATHER_DATA = False
+INCLUDE_WATER_CONSUMPTION = False
+INCLUDE_SEA_LEVEL = False
 APPLY_DATA_CORRECTIONS = False  # Takes really long time
 
 
@@ -52,7 +50,7 @@ def load_data():
     # Save outputs
     to_save = model.all_measurements.sort_index()
     print("Saving outputs...")
-    to_save.to_pickle(f'../output/239-we-wa-se.pkl', compression='gzip')
+    to_save.to_pickle(f'../output/238-va.pkl', compression='gzip')
     return model
 
 
