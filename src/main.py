@@ -25,7 +25,7 @@ INCLUDE_DATA_VALIDATION = True  # Takes long time
 INCLUDE_WEATHER_DATA = False
 INCLUDE_WATER_CONSUMPTION = False
 INCLUDE_SEA_LEVEL = False
-APPLY_DATA_CORRECTIONS = False  # Takes really long time
+APPLY_DATA_CORRECTIONS = True  # Takes really long time
 
 
 def load_data():
@@ -50,7 +50,7 @@ def load_data():
     # Save outputs
     to_save = model.all_measurements.sort_index()
     print("Saving outputs...")
-    to_save.to_pickle(f'../output/238-va.pkl', compression='gzip')
+    to_save.to_pickle(f'../output/238-va-co3.pkl', compression='gzip')
     return model
 
 
