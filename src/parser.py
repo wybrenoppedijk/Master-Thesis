@@ -225,6 +225,8 @@ def parse_232_233_234_238_239_240(filepath: str, pump_station: PumpingStation, c
 
     df = df.set_index(df.time)
     df.drop(columns=["time"], inplace=True)
+    if filename == "PST239_Oktober.CSV":
+        df.at['2020-10-14 09:49:33.410000', 'outflow_level'] = 0.0
 
     if model.include_data_validation:
         df = validate(df, pump_station, model.apply_data_corrections)
