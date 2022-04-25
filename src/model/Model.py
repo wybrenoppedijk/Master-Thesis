@@ -17,6 +17,7 @@ from src.model.PumpingStation import PumpingStation
 from src.model.Pump import Pump
 from src.pumping_station_enum import PUMPING_STATION_ENUM as PS
 from src.model.pst_connections import link_delay_dict
+from src.parser import validate
 
 
 class Model:
@@ -36,6 +37,7 @@ class Model:
             include_water_consumption,
             include_sea_level,
             apply_data_corrections,
+            pst_238_include_inflow,
             nr_threads,
     ):
         self.pumping_stations: dict[PS, PumpingStation] = {}
@@ -49,8 +51,9 @@ class Model:
         self.include_water_consumption = include_water_consumption
         self.include_sea_level = include_sea_level
         self.apply_data_corrections = apply_data_corrections
+        self.pst_238_include_inflow = pst_238_include_inflow
 
-        if (time_interval is not None) and include_data_validation:
+        if (time_interval is not None) and include_data_validation and not pst_238_include_inflow:
             log.warning("Data validation and time interpolation both enabled: ")
             log.warning("Data will be cleaned but you cannot see the errors.")
             log.warning("Set 'INCLUDE_DATA_VALIDATION' on 'True' and set 'TIME_INTERVAL' on 'None'")
@@ -58,7 +61,22 @@ class Model:
 
         if apply_data_corrections and not include_data_validation:
             log.fail("You cannot apply data corrections without data validation")
-            log.fail("Set 'INCLUDE_DATA_VALIDATION' on 'True'")
+            log.fail("Set 'INCLUDE_DATA_VALIDATION' to 'True'")
+            exit()
+
+        if ((PS.PST238 not in to_process) or not len(to_process) == 1) and pst_238_include_inflow:
+            log.fail("When 'INCLUDE_INFLOW' is set to 'True' you cannot ONLY process 'PST238'")
+            log.fail("Please set exactly to 'PUMPING_STATIONS = [ps.PST238]'")
+            exit()
+
+        if pst_238_include_inflow and not include_data_validation:
+            log.fail("You cannot include inflow without data validation. This is needed to set the cycles.")
+            log.fail("Set 'INCLUDE_DATA_VALIDATION' to 'True'")
+            exit()
+
+        if pst_238_include_inflow and not time_interval:
+            log.fail("Calculating inflow without time interpolation is not (yet) supported")
+            log.fail("Set 'TIME_INTERVAL' to a integer number to fix this problem")
             exit()
 
         # Step 1: Parse Pumping Stations Location Data
@@ -75,6 +93,8 @@ class Model:
         self.parse_sea_level_data(path_sea_level_data)
         # Step 7: Define pipeline connections
         self.link_pumping_stations(to_process)
+        # Step 8: Include water inflow Data
+        self.include_inflow()
         log.success("src is ready to use")
 
     def parse_ps_location(self, to_process, location_data_path):
@@ -193,12 +213,12 @@ class Model:
             df_consumption_by_month = [parse_water_consumption_html(html_file) for html_file in html_files]
             self.all_water_consumption = pd.concat(df_consumption_by_month, axis=0)
 
-    def parse_pump_gain(self,to_process, data_path):
+    def parse_pump_gain(self, to_process, data_path):
         df = pd.read_csv(data_path)
         for ps_name in df.iterrows():
             ps = PS(ps_name[1][0])
             if ps in to_process:
-                self.pumping_stations[ps].gain = list(map(float,ps_name[1][1].strip('[]').split(',')))
+                self.pumping_stations[ps].gain = list(map(float, ps_name[1][1].strip('[]').split(',')))
 
     def link_pumping_stations(self, to_process):
         links_count = 0
@@ -227,7 +247,7 @@ class Model:
             chunks.append(chunk)
         return chunks
 
-    def get_sea_levels_row(self,date):
+    def get_sea_levels_row(self, date):
         ix = self.sea_level_data.index.get_indexer([date], method='nearest')[0]
         return self.sea_level_data.iloc[ix - 7: ix - 1].mean().iat[0], \
                self.sea_level_data.iloc[ix: ix + 6].mean().iat[0]
@@ -244,7 +264,8 @@ class Model:
             ocean_data = json.load(open(path_sea_level_data))
             self.sea_level_data = pd.DataFrame(ocean_data.get('features'))[['properties']]
 
-            self.sea_level_data.index = pd.to_datetime(self.sea_level_data.properties.apply(lambda x: x.get('observed')))
+            self.sea_level_data.index = pd.to_datetime(
+                self.sea_level_data.properties.apply(lambda x: x.get('observed')))
             self.sea_level_data.index = self.sea_level_data.index.tz_localize(None)
             self.sea_level_data = self.sea_level_data.sort_index(axis=0)
             self.sea_level_data['sea_level'] = self.sea_level_data.properties.apply(lambda x: x.get('value'))
@@ -274,6 +295,77 @@ class Model:
                 self.all_measurements = self.insert_sea_levels(self.all_measurements)
                 log.debug("Sea level data imported")
 
-
             self.all_measurements.drop(columns=['tides'], inplace=True)
             log.update("Sea level data imported")
+
+    def calc_inflow(self, df):
+        alpha = (math.pi * (0.564189584 ** 2)) * 1000
+
+        df['Volume_RolAvg_Vol_7'] = df.loc[:, 'water_level'].rolling(window=7).mean() * alpha
+
+        df['Converted_Liter_diff'] = (df['water_level'].diff()) * alpha
+        df['CLd_RolAvg'] = df.loc[:, 'Converted_Liter_diff'].rolling(window=7).mean()
+        df['Converted_Outflow'] = df.loc[:, 'outflow_level'].rolling(window=7).mean() * self.time_interval * 1000 / 3600
+        df['inflow'] = df['CLd_RolAvg'] + df['Converted_Outflow']
+
+
+    def include_inflow(self):
+        if self.pst_238_include_inflow:
+            log.debug("Doing final validation needed for inflow calculation")
+            self.all_measurements['current_1'] = self.all_measurements.apply(lambda m: m.currents[0], axis=1)
+            self.all_measurements['current_2'] = self.all_measurements.apply(lambda m: m.currents[1], axis=1)
+            self.all_measurements = validate(self.all_measurements, self.pumping_stations[PS.PST238], False)
+            log.debug("Done final validation needed for inflow calculation")
+
+            # a = (math.pi * (0.564189584 ** 2)) * 1000
+            # win = 4  # default = 28
+            #
+            # # First calculate inflow for all measurements
+            # water_level_rm = a * self.all_measurements.water_level.rolling(window=win).mean()
+            # outflow_rm = (1000 * self.all_measurements.outflow_level * self.time_interval / 3600)\
+            #     .rolling(window=win).mean()
+            #
+            # self.all_measurements['inflow'] = water_level_rm + outflow_rm
+            self.calc_inflow(self.all_measurements)
+
+            # Then impute the inflow for the measurements where pumps are turned on, and for following 4 measurements
+            last_measurement_pumps_on = False
+            start_ix, start_value, stop_delay = 0, 0, 0
+            for ix, (_, m) in enumerate(self.all_measurements.iterrows()):
+                if m.cycle_state and not last_measurement_pumps_on:  # Start of new cycle
+                    start_ix = ix
+                    start_value = self.all_measurements.iloc[ix - 1].inflow
+                    last_measurement_pumps_on = True
+                    stop_delay = 0
+                elif m.cycle_state and last_measurement_pumps_on:  # Ongoing cycle
+                    pass
+                elif not m.cycle_state and last_measurement_pumps_on:  # End of cycle, start stop delay
+                    stop_delay += 1
+                    last_measurement_pumps_on = False
+                elif 0 < stop_delay <= 4:  # Stop delay
+                    stop_delay += 1
+                elif stop_delay == 5:  # Stop delay ended
+                    self.inpute_inflow(ix, start_ix, start_value)
+                    start_value, start_ix, stop_delay = 0, 0, 0
+                elif stop_delay == 0:  # Measurements where the pump is turned off
+                    pass
+                elif stop_delay != 0:
+                    # Only for measurements where pumps have very low stopping time
+                    self.inpute_inflow(ix, start_ix, start_value)
+                    start_value, start_ix, stop_delay = 0, 0, 0
+                else:
+                    raise Exception(f"Unexpected state in include_inflow(): ({ix} - {_})")
+
+    def inpute_inflow(self, ix, start_ix, start_value):
+        stop_ix = ix - 1
+        stop_value = self.all_measurements.iloc[ix].inflow
+        increment_per_step = (stop_value - start_value) / (stop_ix - start_ix + 1)
+        previous_date = None
+        for ix, (date, _) in enumerate(self.all_measurements.iloc[start_ix:stop_ix + 1].iterrows()):
+            if ix == 0:
+                self.all_measurements.at[date, 'inflow'] = start_value
+            else:
+                mes_prev = self.all_measurements.loc[previous_date].inflow
+                imputed = mes_prev + increment_per_step
+                self.all_measurements.loc[date, 'inflow'] = imputed
+            previous_date = date

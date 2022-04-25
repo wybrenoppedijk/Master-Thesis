@@ -264,9 +264,6 @@ def parse_232_233_234_238_239_240(filepath: str, pump_station: PumpingStation, c
     if model.include_water_consumption:
         log.debug(f"{filepath}: Adding water consumption data...")
         df = add_water_consumption_data(df, model)
-
-
-
     log.update(f"{filepath}: Finished ")
     return df
 

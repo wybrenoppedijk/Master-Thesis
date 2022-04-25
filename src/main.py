@@ -7,7 +7,7 @@ from time import time
 NR_THREADS = 8
 
 # Time interval (in seconds) between samples. 'None' means no time interpolation
-TIME_INTERVAL_S = None
+TIME_INTERVAL_S = 60
 
 # Data Files
 PATH_HIST = "../data/HistoricData"
@@ -27,6 +27,9 @@ INCLUDE_WATER_CONSUMPTION = False
 INCLUDE_SEA_LEVEL = False
 APPLY_DATA_CORRECTIONS = True  # Takes really long time
 
+# Pump station specific parameters
+PST_238_INCLUDE_INFOW = True
+
 
 def load_data():
     model = Model(
@@ -44,13 +47,14 @@ def load_data():
         INCLUDE_WATER_CONSUMPTION,
         INCLUDE_SEA_LEVEL,
         APPLY_DATA_CORRECTIONS,
+        PST_238_INCLUDE_INFOW,
         NR_THREADS,
     )
 
     # Save outputs
     to_save = model.all_measurements.sort_index()
     print("Saving outputs...")
-    to_save.to_pickle(f'../output/238-va-co3.pkl', compression='gzip')
+    to_save.to_pickle(f'../output/238-60S-va-co3-inflow-august.pkl', compression='gzip')
     return model
 
 
