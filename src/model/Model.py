@@ -299,42 +299,32 @@ class Model:
             log.update("Sea level data imported")
 
     def calc_inflow(self, df):
-        alpha = (math.pi * (0.564189584 ** 2)) * 1000
-
-        df['Volume_RolAvg_Vol_7'] = df.loc[:, 'water_level'].rolling(window=7).mean() * alpha
-
-        df['Converted_Liter_diff'] = (df['water_level'].diff()) * alpha
-        df['CLd_RolAvg'] = df.loc[:, 'Converted_Liter_diff'].rolling(window=7).mean()
-        df['Converted_Outflow'] = df.loc[:, 'outflow_level'].rolling(window=7).mean() * self.time_interval * 1000 / 3600
+        alpha = (math.pi * (0.564189584 ** 2)) * 1000                                                       # Tank capacity in Liters
+        df['Volume_RolAvg_Vol_7'] = df.loc[:, 'water_level'].rolling(window=4).mean() * alpha               # Tank usage in Liters
+        df['Converted_Liter_diff'] = (df['water_level'].diff()) * alpha                                     # Difference with previous row in Liters
+        df['CLd_RolAvg'] = df.loc[:, 'Converted_Liter_diff'].rolling(window=4).mean() / self.time_interval  # Water level: difference in L per second
+        df['Converted_Outflow'] = df.loc[:, 'outflow_level'].rolling(window=4).mean() * 1000 / 3600         # Outflow from m3/h to L/s  # IMPORTANT this value needs to be scaled correctly
         df['inflow'] = df['CLd_RolAvg'] + df['Converted_Outflow']
 
 
     def include_inflow(self):
         if self.pst_238_include_inflow:
+            pumping_station = self.pumping_stations[PS.PST238]
             log.debug("Doing final validation needed for inflow calculation")
             self.all_measurements['current_1'] = self.all_measurements.apply(lambda m: m.currents[0], axis=1)
             self.all_measurements['current_2'] = self.all_measurements.apply(lambda m: m.currents[1], axis=1)
-            self.all_measurements = validate(self.all_measurements, self.pumping_stations[PS.PST238], False)
+            self.all_measurements = validate(self.all_measurements, pumping_station, False)
             log.debug("Done final validation needed for inflow calculation")
-
-            # a = (math.pi * (0.564189584 ** 2)) * 1000
-            # win = 4  # default = 28
-            #
-            # # First calculate inflow for all measurements
-            # water_level_rm = a * self.all_measurements.water_level.rolling(window=win).mean()
-            # outflow_rm = (1000 * self.all_measurements.outflow_level * self.time_interval / 3600)\
-            #     .rolling(window=win).mean()
-            #
-            # self.all_measurements['inflow'] = water_level_rm + outflow_rm
             self.calc_inflow(self.all_measurements)
 
             # Then impute the inflow for the measurements where pumps are turned on, and for following 4 measurements
             last_measurement_pumps_on = False
             start_ix, start_value, stop_delay = 0, 0, 0
-            for ix, (_, m) in enumerate(self.all_measurements.iterrows()):
+            stop_delay_threshold = 6
+            for ix, (current_date, m) in enumerate(self.all_measurements.iterrows()):
                 if m.cycle_state and not last_measurement_pumps_on:  # Start of new cycle
-                    start_ix = ix
-                    start_value = self.all_measurements.iloc[ix - 1].inflow
+                    start_ix = ix-1
+                    start_value = self.all_measurements.iloc[ix - 2].inflow
                     last_measurement_pumps_on = True
                     stop_delay = 0
                 elif m.cycle_state and last_measurement_pumps_on:  # Ongoing cycle
@@ -342,9 +332,9 @@ class Model:
                 elif not m.cycle_state and last_measurement_pumps_on:  # End of cycle, start stop delay
                     stop_delay += 1
                     last_measurement_pumps_on = False
-                elif 0 < stop_delay <= 4:  # Stop delay
+                elif 0 < stop_delay <= stop_delay_threshold:  # Stop delay
                     stop_delay += 1
-                elif stop_delay == 5:  # Stop delay ended
+                elif stop_delay == stop_delay_threshold+1:  # Stop delay ended
                     self.inpute_inflow(ix, start_ix, start_value)
                     start_value, start_ix, stop_delay = 0, 0, 0
                 elif stop_delay == 0:  # Measurements where the pump is turned off
@@ -354,18 +344,61 @@ class Model:
                     self.inpute_inflow(ix, start_ix, start_value)
                     start_value, start_ix, stop_delay = 0, 0, 0
                 else:
-                    raise Exception(f"Unexpected state in include_inflow(): ({ix} - {_})")
+                    raise Exception(f"Unexpected state in include_inflow(): ({ix} - {current_date})")
+
+            # Finally, we set the label
+            self.all_measurements['inflow_label'] = self.flexibility_label(self.all_measurements)
+
+    """"
+    A very simple function to determine whether or not to impute the inflow or keep the (previously) calculated value.
+    If we have heavy inflow, we want to keep the previously calculated value because it's safer.
+    Otherwise, we want to impute the inflow to show a more accurate picture of the water inflow.
+    """
+    def possibility_of_heavy_inflow(self, start_ix, stop_ix):
+        return False
+        for ix in range(start_ix, stop_ix):
+            # Assumption made here: if the calculated inflow hits zero or lower, than it's very unlikely
+            # that there is heavy inflow. Therefore, return false.
+            if self.all_measurements.iloc[ix].inflow <= 0:
+                return False
+        return True
 
     def inpute_inflow(self, ix, start_ix, start_value):
         stop_ix = ix - 1
-        stop_value = self.all_measurements.iloc[ix].inflow
-        increment_per_step = (stop_value - start_value) / (stop_ix - start_ix + 1)
-        previous_date = None
-        for ix, (date, _) in enumerate(self.all_measurements.iloc[start_ix:stop_ix + 1].iterrows()):
-            if ix == 0:
-                self.all_measurements.at[date, 'inflow'] = start_value
+        # TODO: Check for 23 may between 15:00 and 18:00
+        if not self.possibility_of_heavy_inflow(start_ix, stop_ix):
+            stop_value = self.all_measurements.iloc[ix].inflow
+            increment_per_step = (stop_value - start_value) / (stop_ix - start_ix + 1)
+            previous_date = None
+            for ix, (date, _) in enumerate(self.all_measurements.iloc[start_ix:stop_ix + 1].iterrows()):
+                if ix == 0:
+                    self.all_measurements.at[date, 'inflow'] = start_value
+                else:
+                    mes_prev = self.all_measurements.loc[previous_date].inflow
+                    imputed = mes_prev + increment_per_step
+                    self.all_measurements.loc[date, 'inflow'] = imputed
+                previous_date = date
+        else:
+            # When we heave heavy inflow, we want to keep the old inflow value
+            pass
+
+    def volume_to_meters_cylinder(self, volume):
+        return volume / (math.pi * 0.564189584 ** 2 * 1000)
+
+    # value t is threshold in meters. PST238 has threshold of 1 meter before a pump turns on.
+    def flexibility_label(self, df, t=1):
+        result = []
+        for i in range(len(df)):
+            if df.iloc[i].outflow_level > 0:
+                catchment = 0
+                water_level = df.iloc[i].water_level
+                for j in range(len(df.iloc[i:])):
+                    inflow = df.iloc[j + i].inflow if df.iloc[j + i].inflow > 0 else 0
+                    catchment += inflow * self.time_interval
+                    if self.volume_to_meters_cylinder(catchment) + water_level >= t or j == len(df.iloc[i:]) - 1:
+                        result.append(j)
+                        break
             else:
-                mes_prev = self.all_measurements.loc[previous_date].inflow
-                imputed = mes_prev + increment_per_step
-                self.all_measurements.loc[date, 'inflow'] = imputed
-            previous_date = date
+                result.append(0)
+
+        return result

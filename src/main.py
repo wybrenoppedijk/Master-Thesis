@@ -4,7 +4,7 @@ from multiprocessing import cpu_count
 from time import time
 
 # Number of threads to use for parsing
-NR_THREADS = 8
+NR_THREADS = 1
 
 # Time interval (in seconds) between samples. 'None' means no time interpolation
 TIME_INTERVAL_S = 60
@@ -19,16 +19,16 @@ PATH_VALIDATION_PROPS = "../data/validation_properties.csv"
 PATH_SEA_LEVEL = "../data/ocean_data.json"
 
 # What to include
-# PUMPING_STATIONS = [ps.PST232, ps.PST233, ps.PST234, ps.PST237, ps.PST238, ps.PST239, ps.PST240]
-PUMPING_STATIONS = [ps.PST238]
-INCLUDE_DATA_VALIDATION = True  # Takes long time
+PUMPING_STATIONS = [ps.PST232, ps.PST233, ps.PST234, ps.PST237, ps.PST238, ps.PST239, ps.PST240]
+# PUMPING_STATIONS = [ps.PST238]
+INCLUDE_DATA_VALIDATION = False  # Takes long time
 INCLUDE_WEATHER_DATA = False
 INCLUDE_WATER_CONSUMPTION = False
 INCLUDE_SEA_LEVEL = False
-APPLY_DATA_CORRECTIONS = True  # Takes really long time
+APPLY_DATA_CORRECTIONS = False  # Takes really long time
 
 # Pump station specific parameters
-PST_238_INCLUDE_INFOW = True
+PST_238_INCLUDE_INFOW = False
 
 
 def load_data():
@@ -54,7 +54,7 @@ def load_data():
     # Save outputs
     to_save = model.all_measurements.sort_index()
     print("Saving outputs...")
-    to_save.to_pickle(f'../output/238-60S-va-co3-inflow-august.pkl', compression='gzip')
+    to_save.to_pickle(f'../output/all_simple.pkl', compression='gzip')
     return model
 
 
